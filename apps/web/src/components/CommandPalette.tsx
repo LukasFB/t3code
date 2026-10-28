@@ -321,6 +321,7 @@ function CommandPaletteDialog(props: {
 
   return (
     <CommandDialogPopup
+      size="workspace"
       aria-label={
         props.mode === "files"
           ? "File picker"
@@ -395,6 +396,7 @@ function OpenCommandPaletteDialog(props: {
   const setQuery = (query: string) => dispatchSearch({ type: "query", query });
   const deferredQuery = useDeferredValue(query);
   const isActionsOnly = deferredQuery.startsWith(">");
+  const [category, setCategory] = useState("all");
   const [highlightedItemValue, setHighlightedItemValue] = useState<string | null>(null);
   const resultListRef = useRef<LegendListRef | null>(null);
   // A pushed view drops the typed highlight until the user moves it again.
@@ -2197,6 +2199,15 @@ function OpenCommandPaletteDialog(props: {
   } else if (isBrowsing) {
     displayedGroups = relativePathNeedsActiveProject ? [] : browseGroups;
   }
+  if (category !== "all" && !currentView && !isBrowsing) {
+    displayedGroups = displayedGroups.filter((group) => {
+      const value = group.value;
+      if (category === "messages") return value === "threads-messages";
+      if (category === "threads") return value.includes("threads") && value !== "threads-messages";
+      if (category === "projects") return value.includes("projects");
+      return !value.includes("threads") && !value.includes("projects");
+    });
+  }
   const resultRows = buildCommandPaletteRows(displayedGroups);
   const autoHighlightsFirstRow =
     !isBrowsing && !isRemoteProjectCloneFlow && newProjectFlow === null;
@@ -2667,6 +2678,30 @@ function OpenCommandPaletteDialog(props: {
       showBackHint={isSubmenu}
       value={query}
     >
+      {!currentView && !isBrowsing && !newProjectFlow && !addProjectCloneFlow ? (
+        <div
+          className="flex shrink-0 gap-2 border-b px-3 py-2"
+          role="group"
+          aria-label="Search category"
+        >
+          {["all", "actions", "projects", "threads", "messages"].map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={category === value}
+              className={cn(
+                "rounded-md px-3 py-1 text-xs capitalize",
+                category === value
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:bg-accent",
+              )}
+              onClick={() => setCategory(value)}
+            >
+              {value}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {newProjectPathPreview !== null ? (
         <NewProjectSummary
           name={newProjectName}

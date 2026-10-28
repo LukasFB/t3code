@@ -57,8 +57,8 @@ export function CommandPaletteContent({
             panelSize === "fill"
               ? "flex min-h-0 flex-1 flex-col"
               : panelSize === "tall-list"
-                ? "max-h-[min(34rem,76vh)]"
-                : "flex max-h-[min(28rem,70vh)] min-h-0 flex-col"
+                ? "max-h-[70dvh]"
+                : "flex max-h-[70dvh] min-h-0 flex-col"
           }
         >
           {children}

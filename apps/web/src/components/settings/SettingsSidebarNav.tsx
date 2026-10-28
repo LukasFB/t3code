@@ -207,7 +207,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
     setActiveResultIndex(0);
   };
   const handleSearchResultClick = (item: SettingsSearchItem) => {
-    clearSearch();
     setCompactSearchOpen(false);
     const targetId = item.targetId ?? item.id;
     revealSettingsSearchTarget(targetId);
