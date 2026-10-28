@@ -66,7 +66,7 @@ function lockBackgroundScroll(popup: HTMLElement | null) {
 }
 
 export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
-  favoriteConfigurations?: ReactNode;
+  favoriteConfigurations?: ((query: string) => ReactNode) | undefined;
   environmentId: EnvironmentId | null;
   activeInstanceId: ProviderInstanceId;
   model: string;
@@ -282,8 +282,8 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
         padding="none"
         touchBackdrop
       >
-        {props.favoriteConfigurations}
         <ModelPickerContent
+          favoriteConfigurations={props.favoriteConfigurations}
           searchInputRef={searchInputRef}
           environmentId={props.environmentId}
           activeInstanceId={activeInstanceId}

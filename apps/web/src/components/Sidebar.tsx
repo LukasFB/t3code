@@ -3278,17 +3278,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         );
                       };
                       const from = isContextDrag ? null : (dragState?.activeSection ?? null);
-                      const items: ReactNode[] = [
-                        <SidebarDraftBlock
-                          key="draft-sessions"
-                          projectByKey={projectByKey}
-                          projectDisplayNameByKey={projectDisplayNameByKey}
-                          scopedProjectKeys={scopedProjectKeys}
-                          routeDraftId={routeDraftIdForRows}
-                          onNavigateToDraft={navigateToDraft}
-                          onDraftContextMenu={handleDraftContextMenu}
-                        />,
-                      ];
+                      const items: ReactNode[] = [];
                       for (const item of sidebarListItems) {
                         if (item.kind === "thread") {
                           // Folders draw active rows in their own place below.
@@ -3334,6 +3324,17 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             );
                             break;
                           case "pinned-divider":
+                            items.push(
+                              <SidebarDraftBlock
+                                key="draft-sessions"
+                                projectByKey={projectByKey}
+                                projectDisplayNameByKey={projectDisplayNameByKey}
+                                scopedProjectKeys={scopedProjectKeys}
+                                routeDraftId={routeDraftIdForRows}
+                                onNavigateToDraft={navigateToDraft}
+                                onDraftContextMenu={handleDraftContextMenu}
+                              />,
+                            );
                             items.push(
                               <SidebarDragBoundary
                                 key="pinned-divider"

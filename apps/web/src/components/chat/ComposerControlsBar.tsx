@@ -1,5 +1,4 @@
 import { FavoriteModelConfigurations } from "./FavoriteModelConfigurations";
-import { useComposerDraftStore } from "../../composerDraftStore";
 import type { ChatComposerProps } from "./ChatComposer";
 import type { PromptUltrathink } from "./TraitsPicker";
 import type { ProviderInstanceEntry } from "../../providerInstances";
@@ -247,8 +246,9 @@ export function ComposerControlsBar(props: {
   // Its own element, so typing (which rebuilds the controls around it) leaves it cached.
   const composerModelPicker = (
     <ComposerModelPicker
-      favoriteConfigurations={
+      favoriteConfigurations={(query) => (
         <FavoriteModelConfigurations
+          query={query}
           current={selectedModelSelection}
           disabledReason={(selection) => {
             const entry = providerInstanceEntries.find(
@@ -263,14 +263,13 @@ export function ComposerControlsBar(props: {
             const target = routeKind === "draft" ? draftId : routeThreadRef;
             if (!target) return;
             onMultipleModelSelectionsChange(null);
-            onProviderModelSelect(selection.instanceId, selection.model);
-            useComposerDraftStore
-              .getState()
-              .setModelSelection(target, selection, { explicit: true, replaceOptions: true });
+            onProviderModelSelect(selection.instanceId, selection.model, {
+              modelOptions: selection.options ?? [],
+            });
             onModelPickerOpenChange(false);
           }}
         />
-      }
+      )}
       environmentId={environmentId}
       compact={false}
       isComposerOwned

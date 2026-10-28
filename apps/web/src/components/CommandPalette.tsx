@@ -2216,6 +2216,14 @@ function OpenCommandPaletteDialog(props: {
   } else if (isBrowsing) {
     displayedGroups = relativePathNeedsActiveProject ? [] : browseGroups;
   }
+  if (!deferredQuery.trim() && !currentView && !isBrowsing) {
+    if (category === "projects")
+      displayedGroups = [
+        { value: "projects-search", label: "Projects", items: projectSearchItems },
+      ];
+    if (category === "threads")
+      displayedGroups = [{ value: "threads-search", label: "Threads", items: allThreadItems }];
+  }
   if (category !== "all" && !currentView && !isBrowsing) {
     displayedGroups = displayedGroups.filter((group) => {
       const value = group.value;

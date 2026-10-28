@@ -142,7 +142,7 @@ export function useComposerSelection(input: ComposerSelectionInput) {
   const onProviderModelSelect = (
     instanceId: ProviderInstanceId,
     model: string,
-    options?: { focusComposer?: boolean },
+    options?: { focusComposer?: boolean; modelOptions?: ModelSelection["options"] },
   ) => {
     if (!activeThread) return;
     const entry = providerStatuses.find((snapshot) => snapshot.instanceId === instanceId);
@@ -184,6 +184,7 @@ export function useComposerSelection(input: ComposerSelectionInput) {
       return;
     }
     const rememberedOptions =
+      options?.modelOptions ??
       useComposerDraftStore.getState().stickyOptionsByModelByProvider[instanceId]?.[resolvedModel];
     const nextModelSelection: ModelSelection =
       rememberedOptions !== undefined && rememberedOptions.length > 0

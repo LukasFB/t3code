@@ -12,10 +12,12 @@ const presetKey = (selection: ModelSelection) =>
 
 export function FavoriteModelConfigurations({
   current,
+  query,
   onSelect,
   disabledReason,
 }: {
   current: ModelSelection;
+  query: string;
   onSelect: (selection: ModelSelection) => void;
   disabledReason: (selection: ModelSelection) => string | null;
 }) {
@@ -38,35 +40,42 @@ export function FavoriteModelConfigurations({
           {saved ? "Saved" : "Save current"}
         </Button>
       </div>
-      {presets.map((preset) => (
-        <div key={presetKey(preset)} className="flex items-center gap-1">
-          <button
-            type="button"
-            className="min-w-0 flex-1 rounded px-2 py-1.5 text-left text-xs hover:bg-accent disabled:opacity-40"
-            disabled={disabledReason(preset) !== null}
-            title={disabledReason(preset) ?? undefined}
-            onClick={() => onSelect(preset)}
-          >
-            <span className="block truncate">{preset.model}</span>
-            <span className="block truncate text-muted-foreground">
-              {preset.instanceId} ·{" "}
-              {(preset.options ?? [])
-                .map((option) => `${option.id}: ${String(option.value)}`)
-                .join(" · ") || "Default effort / speed"}
-            </span>
-          </button>
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            aria-label={`Remove ${preset.model} configuration`}
-            onClick={() =>
-              setPresets(presets.filter((item) => presetKey(item) !== presetKey(preset)))
-            }
-          >
-            ×
-          </Button>
-        </div>
-      ))}
+      {presets
+        .filter((preset) =>
+          `${preset.model} ${preset.instanceId} ${(preset.options ?? []).map((option) => `${option.id} ${option.value}`).join(" ")}`
+            .toLowerCase()
+            .includes(query.toLowerCase()),
+        )
+        .map((preset) => (
+          <div key={presetKey(preset)} className="flex items-center gap-1">
+            <button
+              type="button"
+              data-model-configuration
+              className="min-w-0 flex-1 rounded px-2 py-1.5 text-left text-xs hover:bg-accent disabled:opacity-40"
+              disabled={disabledReason(preset) !== null}
+              aria-description={disabledReason(preset) ?? undefined}
+              onClick={() => onSelect(preset)}
+            >
+              <span className="block truncate">{preset.model}</span>
+              <span className="block truncate text-muted-foreground">
+                {preset.instanceId} ·{" "}
+                {(preset.options ?? [])
+                  .map((option) => `${option.id}: ${String(option.value)}`)
+                  .join(" · ") || "Default effort / speed"}
+              </span>
+            </button>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              aria-label={`Remove ${preset.model} configuration`}
+              onClick={() =>
+                setPresets(presets.filter((item) => presetKey(item) !== presetKey(preset)))
+              }
+            >
+              ×
+            </Button>
+          </div>
+        ))}
       {presets.length === 0 ? (
         <p className="px-2 text-xs text-muted-foreground">
           Choose model, effort and speed, then save the combination here.

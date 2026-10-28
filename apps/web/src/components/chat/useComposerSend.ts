@@ -673,7 +673,10 @@ export function useComposerSend(input: ComposerSendInput) {
         model: ctxSelectedModel,
         models: ctxSelectedProviderModels,
         effort: ctxSelectedPromptEffort,
-        text: followUp.text.trim(),
+        text: expandBrowserMention(
+          followUp.text.trim(),
+          scopeThreadRef(environmentId, activeThread.id),
+        ),
       });
       if (composerRef.current?.validateProviderInput(outgoingFollowUpText) === false) {
         return;
@@ -1119,7 +1122,7 @@ export function useComposerSend(input: ComposerSendInput) {
         branch: activeThreadBranch!,
         selections: multipleModelSelections,
         targets: multipleTargets,
-        sendSnapshot,
+        sendSnapshot: { ...sendSnapshot, messageText: messageTextForSend },
         createdAt: messageCreatedAt,
         attachmentsPromise: turnAttachmentsPromise,
         usesAttachmentUploads: turnUsesAttachmentUploads,

@@ -45,6 +45,7 @@ export async function copyThreadWorkspace<E>(
       },
     }));
   const previews = readThreadPreviewState(source);
+  const restoredIds = new Map<string, string>();
   for (const surface of sourcePanel?.surfaces ?? []) {
     if (surface.kind !== "preview" || !surface.resourceId) continue;
     const snapshot = previews.sessions[surface.resourceId];
@@ -54,10 +55,17 @@ export async function copyThreadWorkspace<E>(
       threadRef: target,
       ...(snapshot.navStatus._tag === "Idle" ? {} : { url: snapshot.navStatus.url }),
       ...(snapshot.profileId === undefined ? {} : { profileId: snapshot.profileId }),
+      ...(snapshot.viewport === undefined ? {} : { viewport: snapshot.viewport }),
+      ...(snapshot.runtime === undefined ? {} : { runtime: snapshot.runtime }),
     });
     if (result._tag === "Failure")
       throw new Error("The new thread was created, but a browser tab could not be restored.");
     useRightPanelStore.getState().openBrowser(target, result.value.tabId);
+    restoredIds.set(surface.id, `browser:${result.value.tabId}`);
+  }
+  if (sourcePanel?.activeSurfaceId) {
+    const activeId = restoredIds.get(sourcePanel.activeSurfaceId) ?? sourcePanel.activeSurfaceId;
+    useRightPanelStore.getState().activateSurface(target, activeId);
   }
   if (sourcePanel && !sourcePanel.isOpen) useRightPanelStore.getState().close(target);
 }

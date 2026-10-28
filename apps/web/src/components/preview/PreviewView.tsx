@@ -151,7 +151,7 @@ export function PreviewView({
     if (!visible) return;
     urlInputRef.current?.focus();
     urlInputRef.current?.select();
-  }, [visible, requestedTabId]);
+  }, [visible]);
   const [pickActive, setPickActive] = useState(false);
   const canSendAnnotation =
     useEnvironmentScope(threadRef.environmentId, AuthOrchestrationOperateScope) &&

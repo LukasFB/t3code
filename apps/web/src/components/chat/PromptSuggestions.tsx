@@ -60,7 +60,6 @@ export function PromptSuggestions({
             key={prompt}
             type="button"
             className="max-w-full truncate rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
-            title={prompt}
             onClick={() => onSelect(prompt)}
           >
             {prompt}

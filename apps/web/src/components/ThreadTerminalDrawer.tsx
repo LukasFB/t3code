@@ -134,7 +134,7 @@ function clampDrawerHeight(height: number, maxHeight: number): number {
 }
 
 function chatColumnOf(drawer: HTMLElement | null): HTMLElement | null {
-  return drawer?.closest<HTMLElement>("[data-chat-column]") ?? null;
+  return drawer?.closest<HTMLElement>("[data-chat-column], [data-workspace-layout]") ?? null;
 }
 
 function readDrawerLayout(column: HTMLElement | null): Omit<DrawerLayout, "composerHeight"> {

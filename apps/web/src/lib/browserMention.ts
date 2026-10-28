@@ -2,7 +2,7 @@ import type { ScopedThreadRef } from "@t3tools/contracts";
 import { readThreadPreviewState } from "../previewStateStore";
 
 export function expandBrowserMention(text: string, threadRef: ScopedThreadRef) {
-  if (!/(^|\s)@browser\b/i.test(text)) return text;
+  if (!/(^|\s)@browser(?![\w./-])/i.test(text)) return text;
   const state = readThreadPreviewState(threadRef);
   const tabs = Object.values(state.sessions).map((tab) => ({
     tabId: tab.tabId,

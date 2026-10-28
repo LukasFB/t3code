@@ -405,6 +405,7 @@ type ChatViewProps =
     };
 
 export default function ChatView(props: ChatViewProps) {
+  const [desktopPreferences] = useDesktopPreferences();
   const {
     environmentId,
     threadId,
@@ -3183,7 +3184,6 @@ export default function ChatView(props: ChatViewProps) {
     addFolders: addDroppedFoldersToComposer,
   });
 
-  const [desktopPreferences] = useDesktopPreferences();
   const terminalDrawers = (
     <ChatTerminalDrawers
       activeThreadKey={activeThreadKey}
@@ -3199,7 +3199,10 @@ export default function ChatView(props: ChatViewProps) {
     />
   );
   const content = (
-    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
+    <div
+      data-workspace-layout
+      className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background"
+    >
       <div ref={setWorkspaceLayoutElement} className="relative flex min-h-0 min-w-0 flex-1">
         <DeviceSetupDialogHost
           threadKey={activeThreadKey}
@@ -3255,11 +3258,11 @@ export default function ChatView(props: ChatViewProps) {
                 ? { onOpenProjectSettings: handleOpenDraftProjectSettingsStable }
                 : {})}
             />
-            <div className="no-drag flex shrink-0 items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1 [-webkit-app-region:no-drag]">
               <Button
                 size="xs"
                 variant="ghost"
-                title="Fork last response (⌘⌥⇧F)"
+                aria-label="Fork last response (⌘⌥⇧F)"
                 onClick={() => void runWorkspaceCommand("side")}
               >
                 Fork
@@ -3267,7 +3270,7 @@ export default function ChatView(props: ChatViewProps) {
               <Button
                 size="xs"
                 variant="ghost"
-                title="Fresh thread, same layout (⌘⌥⇧N)"
+                aria-label="Fresh thread, same layout (⌘⌥⇧N)"
                 onClick={() => void runWorkspaceCommand("clear")}
               >
                 Clear
