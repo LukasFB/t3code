@@ -1,3 +1,4 @@
+import { useDesktopPreferences } from "../../desktopPreferences";
 import { NotificationSettings } from "./NotificationSettings";
 import { PRIVACY_POLICY_URL } from "../../legalLinks";
 import { CheckIcon } from "lucide-react";
@@ -1023,6 +1024,7 @@ export function GeneralSettingsPanel() {
 }
 
 export function ChatSettingsPanel() {
+  const [desktopPreferences, setDesktopPreferences] = useDesktopPreferences();
   const modifierLabel = isMacPlatform(navigator.platform) ? "⌘" : "Ctrl";
   const sendShortcutOptions = [
     { value: "enter", label: "Enter" },
@@ -1034,6 +1036,34 @@ export function ChatSettingsPanel() {
 
   return (
     <SettingsPageContainer>
+      <SettingsSection id="desktop-workspace" title="Desktop workspace">
+        <SettingsRow
+          title="Full-width terminal"
+          description="Extend the terminal below both chat and the right panel."
+          control={
+            <Switch
+              aria-label="Full-width terminal"
+              checked={desktopPreferences.terminalFullWidth}
+              onCheckedChange={(checked) =>
+                setDesktopPreferences({ ...desktopPreferences, terminalFullWidth: checked })
+              }
+            />
+          }
+        />
+        <SettingsRow
+          title="Prompt suggestions"
+          description="Offer follow-up prompts after an agent response."
+          control={
+            <Switch
+              aria-label="Prompt suggestions"
+              checked={desktopPreferences.promptSuggestions}
+              onCheckedChange={(checked) =>
+                setDesktopPreferences({ ...desktopPreferences, promptSuggestions: checked })
+              }
+            />
+          }
+        />
+      </SettingsSection>
       <SettingsSection id="composer" title="Composer">
         <SettingsRow
           {...searchableSetting("composer-rich-text")}
