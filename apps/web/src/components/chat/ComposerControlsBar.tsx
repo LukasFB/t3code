@@ -246,7 +246,7 @@ export function ComposerControlsBar(props: {
   // Its own element, so typing (which rebuilds the controls around it) leaves it cached.
   const composerModelPicker = (
     <ComposerModelPicker
-      favoriteConfigurations={(query) => (
+      renderFavoriteConfigurations={(query) => (
         <FavoriteModelConfigurations
           query={query}
           current={selectedModelSelection}

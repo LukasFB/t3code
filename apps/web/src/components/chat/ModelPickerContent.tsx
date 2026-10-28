@@ -345,7 +345,7 @@ function WindowKeyDownListener({ onKeyDown }: { onKeyDown: (event: KeyboardEvent
 }
 
 export const ModelPickerContent = memo(function ModelPickerContent(props: {
-  favoriteConfigurations?: ((query: string) => ReactNode) | undefined;
+  renderFavoriteConfigurations?: ((query: string) => ReactNode) | undefined;
   environmentId: EnvironmentId | null;
   activeInstanceId: ProviderInstanceId;
   model: string;
@@ -432,7 +432,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
       ) {
         return props.activeInstanceId;
       }
-      return props.favoriteConfigurations || favorites.length > 0
+      return props.renderFavoriteConfigurations || favorites.length > 0
         ? "favorites"
         : props.activeInstanceId;
     },
@@ -773,7 +773,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
   };
 
   const configurationFavoritesActive =
-    Boolean(props.favoriteConfigurations) && selectedInstanceId === "favorites";
+    Boolean(props.renderFavoriteConfigurations) && selectedInstanceId === "favorites";
   const onWindowKeyDown = (event: globalThis.KeyboardEvent) => {
     if (event.defaultPrevented || event.repeat || isCommandPaletteOpen()) {
       return;
@@ -809,9 +809,10 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     event.stopPropagation();
 
     if (configurationFavoritesActive) {
-      pickerContentRef.current
-        ?.querySelectorAll<HTMLButtonElement>("[data-model-configuration]:not(:disabled)")
-        [jumpIndex]?.click();
+      const configurations = pickerContentRef.current?.querySelectorAll<HTMLButtonElement>(
+        "[data-model-configuration]:not(:disabled)",
+      );
+      configurations?.[jumpIndex]?.click();
       return;
     }
     const targetModelKey = modelJumpModelKeys[jumpIndex];
@@ -981,8 +982,8 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
               onTouchStart={(e) => e.stopPropagation()}
             />
 
-            {props.favoriteConfigurations && configurationFavoritesActive ? (
-              props.favoriteConfigurations(searchQuery)
+            {props.renderFavoriteConfigurations && configurationFavoritesActive ? (
+              props.renderFavoriteConfigurations(searchQuery)
             ) : (
               <>
                 <ModelPickerList
@@ -1046,7 +1047,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                         unavailable={model.isUnavailable === true}
                         jumpLabel={modelJumpLabelByKey.get(modelKey) ?? null}
                         disabledReason={disabledReason}
-                        hideFavorite={Boolean(props.favoriteConfigurations)}
+                        hideFavorite={Boolean(props.renderFavoriteConfigurations)}
                         onToggleFavorite={toggleFavorite}
                       />
                     );
