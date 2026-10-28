@@ -404,6 +404,19 @@ type ChatViewProps =
       draftId: DraftId;
     };
 
+async function withWorkspaceCommandLock(
+  busy: { current: boolean },
+  action: () => Promise<boolean>,
+): Promise<boolean> {
+  if (busy.current) return false;
+  busy.current = true;
+  try {
+    return await action();
+  } finally {
+    busy.current = false;
+  }
+}
+
 export default function ChatView(props: ChatViewProps) {
   const [desktopPreferences] = useDesktopPreferences();
   const {
@@ -2809,43 +2822,42 @@ export default function ChatView(props: ChatViewProps) {
         toastManager.add({ type: "info", title: "Complete a response before forking" });
         return false;
       }
-      workspaceCommandBusy.current = true;
       const source = activeThreadRef;
-      try {
-        if (command === "side" && lastResponse?.runId) {
-          const target = await onForkFromRunStable({
-            sourceThreadId: source.threadId,
-            runId: lastResponse.runId,
+      return withWorkspaceCommandLock(workspaceCommandBusy, async () => {
+        try {
+          if (command === "side" && lastResponse?.runId) {
+            const target = await onForkFromRunStable({
+              sourceThreadId: source.threadId,
+              runId: lastResponse.runId,
+            });
+            if (!target) return false;
+            if (prompt) useComposerDraftStore.getState().setPrompt(target, prompt);
+            await copyThreadWorkspace(source, target, openWorkspacePreview);
+          } else {
+            const created = await handleNewThread(activeProjectRef, {
+              forceNew: true,
+              branch: activeThreadBranch,
+              worktreePath: activeThreadWorktreePath,
+              envMode: activeThreadWorktreePath ? "worktree" : "local",
+              prompt,
+            });
+            if (!created) return false;
+            await copyThreadWorkspace(
+              source,
+              scopeThreadRef(source.environmentId, created.threadId),
+              openWorkspacePreview,
+            );
+          }
+          return true;
+        } catch (error) {
+          toastManager.add({
+            type: "error",
+            title: "Workspace action failed",
+            description: error instanceof Error ? error.message : String(error),
           });
-          if (!target) return false;
-          if (prompt) useComposerDraftStore.getState().setPrompt(target, prompt);
-          await copyThreadWorkspace(source, target, openWorkspacePreview);
-        } else {
-          const created = await handleNewThread(activeProjectRef, {
-            forceNew: true,
-            branch: activeThreadBranch,
-            worktreePath: activeThreadWorktreePath,
-            envMode: activeThreadWorktreePath ? "worktree" : "local",
-            prompt,
-          });
-          if (!created) return false;
-          await copyThreadWorkspace(
-            source,
-            scopeThreadRef(source.environmentId, created.threadId),
-            openWorkspacePreview,
-          );
+          return false;
         }
-        return true;
-      } catch (error) {
-        toastManager.add({
-          type: "error",
-          title: "Workspace action failed",
-          description: error instanceof Error ? error.message : String(error),
-        });
-        return false;
-      } finally {
-        workspaceCommandBusy.current = false;
-      }
+      });
     },
   );
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- registers desktop keyboard and command-palette workspace actions
