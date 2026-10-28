@@ -146,6 +146,12 @@ export function PreviewView({
   onSendAnnotation,
 }: Props) {
   const urlInputRef = useRef<HTMLInputElement | null>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- focuses the address input when a browser surface becomes visible
+  useEffect(() => {
+    if (!visible) return;
+    urlInputRef.current?.focus();
+    urlInputRef.current?.select();
+  }, [visible, requestedTabId]);
   const [pickActive, setPickActive] = useState(false);
   const canSendAnnotation =
     useEnvironmentScope(threadRef.environmentId, AuthOrchestrationOperateScope) &&

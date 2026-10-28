@@ -25,7 +25,7 @@ import { setActivePreviewTab } from "../../previewStateStore";
 import { BrowserSettingsReadError } from "../../browser/openFileInPreview";
 import { addBrowserSurface } from "../preview/addBrowserSurface";
 import { focusActivePanelTerminal, focusTerminal } from "../../lib/terminalFocus";
-import { subscribePreviewAction } from "../preview/previewActionBus";
+import { dispatchPreviewAction, subscribePreviewAction } from "../preview/previewActionBus";
 import { floatDeviceSurface } from "../preview/agentOpenedPreviews";
 import { browserMiniPlayerSource, usePreviewMiniPlayerStore } from "../../previewMiniPlayerStore";
 import type { threadPullRequestPanelTarget } from "../pullRequest/pullRequestDetail.logic";
@@ -320,6 +320,19 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
         if (action === "toggle-panel") togglePreviewPanelStable();
       }),
     [togglePreviewPanelStable],
+  );
+
+  const closeActiveSurface = useStableCallback(() => {
+    if (activeRightPanelSurface) closeRightPanelSurface(activeRightPanelSurface);
+  });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- handles shortcuts forwarded by the native browser guest
+  useEffect(
+    () =>
+      window.desktopBridge?.onMenuAction((action) => {
+        if (action === "rightPanel.close") closeActiveSurface();
+        if (action === "preview.focusUrl") dispatchPreviewAction("focus-url");
+      }),
+    [closeActiveSurface],
   );
 
   const shortcuts = {
