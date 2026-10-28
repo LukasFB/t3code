@@ -1857,6 +1857,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       return;
     }
     if (item.type === "slash-command") {
+      if (item.command === "side" || item.command === "clear") {
+        applyPromptReplacement(trigger.rangeStart, trigger.rangeEnd, `/${item.command} `);
+        setComposerHighlightedItemId(null);
+        return;
+      }
       if (item.command === "model") {
         const applied = applyPromptReplacement(trigger.rangeStart, trigger.rangeEnd, "", {
           expectedText: snapshot.value.slice(trigger.rangeStart, trigger.rangeEnd),

@@ -1153,6 +1153,23 @@ function OpenCommandPaletteDialog(props: {
   };
 
   const actionItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [];
+  if (activeThread) {
+    for (const [command, title] of [
+      ["side", "Fork from last response"],
+      ["clear", "Fresh thread with current workspace"],
+    ] as const) {
+      actionItems.push({
+        kind: "action",
+        value: `workspace:${command}`,
+        title,
+        searchTerms: [command, "thread", "workspace", "fork", "clear"],
+        icon: <MessageSquareIcon className={ITEM_ICON_CLASS} />,
+        run: () => {
+          window.dispatchEvent(new CustomEvent("t3code:workspace-command", { detail: command }));
+        },
+      });
+    }
+  }
 
   if (projects.length > 0) {
     const activeProjectTitle =

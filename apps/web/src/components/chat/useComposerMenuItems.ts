@@ -212,6 +212,20 @@ export function useComposerMenuItems({
     if (composerTrigger.kind === "slash-command") {
       const builtInSlashCommandItems = [
         {
+          id: "slash:side",
+          type: "slash-command",
+          command: "side",
+          label: "/side",
+          description: "Fork from the last response; optionally add a prompt",
+        },
+        {
+          id: "slash:clear",
+          type: "slash-command",
+          command: "clear",
+          label: "/clear",
+          description: "Fresh thread with the current workspace layout",
+        },
+        {
           id: "slash:model",
           type: "slash-command",
           command: "model",

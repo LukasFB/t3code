@@ -209,6 +209,7 @@ export function useTimelineRewind(input: TimelineRewindInput) {
       to: "/$environmentId/$threadId",
       params: buildThreadRouteParams(targetThreadRef),
     });
+    return targetThreadRef;
   };
   const onForkFromRunStable = useStableCallback(onForkFromRun);
   const onRevertTimelineTurn = (targetTurnCount: number, messageId: MessageId) => {

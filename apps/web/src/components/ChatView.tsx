@@ -1,3 +1,6 @@
+import { Button } from "./ui/button";
+import { copyThreadWorkspace } from "../lib/copyThreadWorkspace";
+import { previewEnvironment as workspacePreviewEnvironment } from "../state/preview";
 import { useDesktopPreferences } from "../desktopPreferences";
 import { workspaceAreaProps } from "../lib/workspaceFocus";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
@@ -414,6 +417,8 @@ export default function ChatView(props: ChatViewProps) {
   const canOperateTerminal = useEnvironmentScope(environmentId, AuthTerminalOperateScope);
   const draftId = routeKind === "draft" ? props.draftId : null;
   const handleNewThread = useNewThreadHandler();
+  const openWorkspacePreview = useAtomCommand(workspacePreviewEnvironment.open);
+  const workspaceCommandBusy = useRef(false);
   const routeThreadRef = scopeThreadRef(environmentId, threadId);
   const routeThreadKey = scopedThreadKey(routeThreadRef);
   const currentRouteThreadKeyRef = useRef<string | null>(routeThreadKey);
@@ -2793,7 +2798,85 @@ export default function ChatView(props: ChatViewProps) {
     });
   };
   const onWorktreeSetupWorkLocallyStable = useStableCallback(onWorktreeSetupWorkLocally);
-  const onComposerSendStable = useStableCallback(onSend);
+  const runWorkspaceCommand = useStableCallback(
+    async (command: "side" | "clear", prompt: string = "") => {
+      if (workspaceCommandBusy.current || !activeThreadRef || !activeProjectRef) return false;
+      const lastResponse = timelineMessages.findLast(
+        (message) => message.role === "assistant" && !message.streaming && message.runId,
+      );
+      if (command === "side" && !lastResponse?.runId) {
+        toastManager.add({ type: "info", title: "Complete a response before forking" });
+        return false;
+      }
+      workspaceCommandBusy.current = true;
+      const source = activeThreadRef;
+      try {
+        if (command === "side" && lastResponse?.runId) {
+          const target = await onForkFromRunStable({
+            sourceThreadId: source.threadId,
+            runId: lastResponse.runId,
+          });
+          if (!target) return false;
+          if (prompt) useComposerDraftStore.getState().setPrompt(target, prompt);
+          await copyThreadWorkspace(source, target, openWorkspacePreview);
+        } else {
+          const created = await handleNewThread(activeProjectRef, {
+            forceNew: true,
+            branch: activeThreadBranch,
+            worktreePath: activeThreadWorktreePath,
+            envMode: activeThreadWorktreePath ? "worktree" : "local",
+            prompt,
+          });
+          if (!created) return false;
+          await copyThreadWorkspace(
+            source,
+            scopeThreadRef(source.environmentId, created.threadId),
+            openWorkspacePreview,
+          );
+        }
+        return true;
+      } catch (error) {
+        toastManager.add({
+          type: "error",
+          title: "Workspace action failed",
+          description: error instanceof Error ? error.message : String(error),
+        });
+        return false;
+      } finally {
+        workspaceCommandBusy.current = false;
+      }
+    },
+  );
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- registers desktop keyboard and command-palette workspace actions
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || !event.altKey || !event.shiftKey || event.repeat)
+        return;
+      const command = event.code === "KeyF" ? "side" : event.code === "KeyN" ? "clear" : null;
+      if (!command || document.querySelector('[role="dialog"]')) return;
+      event.preventDefault();
+      void runWorkspaceCommand(command);
+    };
+    const action = (event: Event) => {
+      const command = (event as CustomEvent<string>).detail;
+      if (command === "side" || command === "clear") void runWorkspaceCommand(command);
+    };
+    window.addEventListener("keydown", keydown);
+    window.addEventListener("t3code:workspace-command", action);
+    return () => {
+      window.removeEventListener("keydown", keydown);
+      window.removeEventListener("t3code:workspace-command", action);
+    };
+  }, [runWorkspaceCommand]);
+  const onComposerSendStable = useStableCallback(async (...args: Parameters<typeof onSend>) => {
+    const match = /^\/(side|clear)(?:\s+([\s\S]*))?$/.exec(promptRef.current.trim());
+    if (!match) return onSend(...args);
+    args[0]?.preventDefault();
+    const sourceTarget = composerDraftTarget;
+    if (await runWorkspaceCommand(match[1] as "side" | "clear", match[2]?.trim())) {
+      useComposerDraftStore.getState().setPrompt(sourceTarget, "");
+    }
+  });
   const sendPreviewAnnotation = (
     annotation: PreviewAnnotationPayload,
     image: ComposerImageAttachment | null,
@@ -3172,6 +3255,24 @@ export default function ChatView(props: ChatViewProps) {
                 ? { onOpenProjectSettings: handleOpenDraftProjectSettingsStable }
                 : {})}
             />
+            <div className="no-drag flex shrink-0 items-center gap-1">
+              <Button
+                size="xs"
+                variant="ghost"
+                title="Fork last response (⌘⌥⇧F)"
+                onClick={() => void runWorkspaceCommand("side")}
+              >
+                Fork
+              </Button>
+              <Button
+                size="xs"
+                variant="ghost"
+                title="Fresh thread, same layout (⌘⌥⇧N)"
+                onClick={() => void runWorkspaceCommand("clear")}
+              >
+                Clear
+              </Button>
+            </div>
           </header>
 
           <div className="relative flex min-h-0 min-w-0 flex-1">
@@ -3279,7 +3380,9 @@ export default function ChatView(props: ChatViewProps) {
                   onOpenThread={onOpenRelatedThreadStable}
                   parentThreadLink={parentThreadLink}
                   workflowOpening={workflowOpening}
-                  onForkFromRun={onForkFromRunStable}
+                  onForkFromRun={async (input) => {
+                    await onForkFromRunStable(input);
+                  }}
                   supportsConversationRollback={supportsConversationRollback}
                   threadStartCheckpointReady={threadStartCheckpointReady}
                   availableRevertTurnCounts={availableRevertTurnCounts}
