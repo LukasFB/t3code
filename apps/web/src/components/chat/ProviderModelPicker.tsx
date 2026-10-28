@@ -5,7 +5,7 @@ import {
   type ProviderDriverKind,
   type ResolvedKeybindingsConfig,
 } from "@t3tools/contracts";
-import { memo, useRef, useState } from "react";
+import { memo, useRef, useState, type ReactNode } from "react";
 import { Badge } from "../ui/badge";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -66,6 +66,7 @@ function lockBackgroundScroll(popup: HTMLElement | null) {
 }
 
 export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
+  favoriteConfigurations?: ReactNode;
   environmentId: EnvironmentId | null;
   activeInstanceId: ProviderInstanceId;
   model: string;
@@ -281,6 +282,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
         padding="none"
         touchBackdrop
       >
+        {props.favoriteConfigurations}
         <ModelPickerContent
           searchInputRef={searchInputRef}
           environmentId={props.environmentId}
