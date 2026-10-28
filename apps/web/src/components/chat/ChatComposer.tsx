@@ -1,3 +1,5 @@
+import { useDesktopPreferences } from "../../desktopPreferences";
+import { PromptSuggestions } from "./PromptSuggestions";
 import { useComposerTypingGuard } from "./useComposerTypingGuard";
 import { insertAttachmentReferencesForDraft } from "./composerAttachmentReferences";
 import { DESKTOP_PASTE_AS_TEXT_EVENT } from "../../lib/desktopPasteAsText";
@@ -346,6 +348,7 @@ export interface ChatComposerHandle {
 }
 
 export interface ChatComposerProps {
+  lastAssistantResponse?: { id: string; text: string } | undefined;
   composerDraftTarget: ScopedThreadRef | DraftId;
   environmentId: EnvironmentId;
   canOperateThread: boolean;
@@ -676,6 +679,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     attachmentTargetKeyRef.current = attachmentTargetKey;
   });
   const questionPreparations = useQuestionAttachmentPreparation((state) => state.counts);
+  const [desktopPreferences] = useDesktopPreferences();
   const prompt = composerDraft.prompt;
   const composerImages = attachmentDraft.images;
   const composerFiles = attachmentDraft.files;
@@ -3151,6 +3155,18 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       <ComposerBanner.Dock>
         <ComposerBanner.Column>
           <ComposerBannerStack items={shelfItems} />
+          {desktopPreferences.promptSuggestions &&
+          props.lastAssistantResponse &&
+          !prompt.trim() &&
+          phase !== "running" &&
+          !isSendBusy &&
+          !showComposerTopDrawer ? (
+            <PromptSuggestions
+              key={props.lastAssistantResponse.id}
+              response={props.lastAssistantResponse}
+              onSelect={(suggestion) => applyPromptReplacement(0, prompt.length, suggestion)}
+            />
+          ) : null}
           {showComposerTopDrawer ? (
             <ComposerBanner.Attachment>
               <ComposerBanner.Root data-chat-composer-top-drawer="true" variant="info">

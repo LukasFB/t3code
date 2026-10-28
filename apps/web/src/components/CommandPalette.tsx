@@ -1164,7 +1164,7 @@ function OpenCommandPaletteDialog(props: {
         title,
         searchTerms: [command, "thread", "workspace", "fork", "clear"],
         icon: <MessageSquareIcon className={ITEM_ICON_CLASS} />,
-        run: () => {
+        run: async () => {
           window.dispatchEvent(new CustomEvent("t3code:workspace-command", { detail: command }));
         },
       });

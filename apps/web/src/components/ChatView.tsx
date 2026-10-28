@@ -3617,6 +3617,12 @@ export default function ChatView(props: ChatViewProps) {
                                 onPageScrollKeyUp={onComposerPageScrollKeyUpStable}
                                 onPageScrollRelease={onComposerPageScrollReleaseStable}
                                 onCompactContext={onComposerCompactContextStable}
+                                lastAssistantResponse={timelineMessages.findLast(
+                                  (message) =>
+                                    message.role === "assistant" &&
+                                    !message.streaming &&
+                                    message.text.trim().length > 0,
+                                )}
                                 onSend={onComposerSendStable}
                                 onResume={onComposerResumeStable}
                                 onInterrupt={onInterruptStable}
