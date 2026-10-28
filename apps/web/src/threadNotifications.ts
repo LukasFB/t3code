@@ -1,3 +1,4 @@
+import { readDesktopPreferences } from "./desktopPreferences";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import type { ClientSettings } from "@t3tools/contracts/settings";
 
@@ -94,6 +95,7 @@ export function unlockNotificationAudio() {
 export async function playNotificationSound(
   kind: "completion" | "input",
   shouldPlay: () => boolean,
+  preview = false,
 ) {
   if (!audioContext || audioContext.state !== "running") return;
   const context = audioContext;
@@ -110,9 +112,19 @@ export async function playNotificationSound(
     if (!shouldPlay() || context.state !== "running") return;
     // Coalesce same-sound bursts after decode to avoid clipping; input and completion alerts keep separate slots.
     if (context.currentTime < (playingUntil.get(url) ?? 0)) return;
+    const preferences = readDesktopPreferences();
+    if (!preview && !(kind === "completion" ? preferences.completionSound : preferences.inputSound))
+      return;
+    const gain = context.createGain();
+    gain.gain.value = Math.max(0, Math.min(1, preferences.notificationVolume));
+    gain.connect(context.destination);
     const source = context.createBufferSource();
     source.buffer = decoded;
-    source.connect(context.destination);
+    source.connect(gain);
+    source.onended = () => {
+      source.disconnect();
+      gain.disconnect();
+    };
     source.start();
     playingUntil.set(url, context.currentTime + decoded.duration);
   } catch {
