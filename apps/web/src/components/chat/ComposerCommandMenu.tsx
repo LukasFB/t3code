@@ -35,6 +35,7 @@ import { ComposerBanner } from "./ComposerBanner";
 import { resolvePullRequestState } from "../pullRequest/pullRequestPresentation";
 
 export type ComposerCommandItem =
+  | { id: string; type: "browser"; label: string; description: string }
   | {
       id: string;
       type: "path";

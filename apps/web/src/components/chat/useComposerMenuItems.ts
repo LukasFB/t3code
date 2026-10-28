@@ -182,6 +182,16 @@ export function useComposerMenuItems({
     if (!composerTrigger) return [];
     if (composerTrigger.kind === "path") {
       return [
+        ...("browser".includes(composerTrigger.query.toLowerCase())
+          ? [
+              {
+                id: "mention:browser",
+                type: "browser" as const,
+                label: "Browser",
+                description: "Use this thread's T3 Code browser",
+              },
+            ]
+          : []),
         ...matchComposerThreadItems({
           shells: environmentThreadShells,
           environmentId,

@@ -1,3 +1,4 @@
+import { expandBrowserMention } from "../../lib/browserMention";
 import {
   mergeDirectPreviewAnnotation,
   resolveBackgroundDraftWorkspaceOptions,
@@ -794,8 +795,12 @@ export function useComposerSend(input: ComposerSendInput) {
       reviewComments: composerReviewCommentsSnapshot,
       threadContexts: composerThreadContextsSnapshot,
       environmentContexts: composerEnvironmentContextsSnapshot,
-      messageText: messageTextForSend,
+      messageText: rawMessageTextForSend,
     } = sendSnapshot;
+    const messageTextForSend = expandBrowserMention(
+      rawMessageTextForSend,
+      scopeThreadRef(environmentId, threadIdForSend),
+    );
     const {
       missingWorktreeBaseBranch,
       baseBranchForWorktree,
