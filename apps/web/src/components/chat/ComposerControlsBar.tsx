@@ -248,6 +248,7 @@ export function ComposerControlsBar(props: {
     <ComposerModelPicker
       renderFavoriteConfigurations={(query) => (
         <FavoriteModelConfigurations
+          providers={providerInstanceEntries}
           query={query}
           current={selectedModelSelection}
           disabledReason={(selection) => {

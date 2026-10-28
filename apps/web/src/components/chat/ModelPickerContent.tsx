@@ -836,7 +836,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
       <WindowKeyDownListener onKeyDown={onWindowKeyDown} />
       <div
         ref={pickerContentRef}
-        className="relative flex max-h-86.5 w-screen max-w-90 flex-row overflow-hidden"
+        className="relative flex max-h-86.5 w-screen max-w-120 flex-row overflow-hidden"
         style={
           isSearching
             ? { height: searchHeight }

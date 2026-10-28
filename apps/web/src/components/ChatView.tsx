@@ -2815,20 +2815,21 @@ export default function ChatView(props: ChatViewProps) {
   const runWorkspaceCommand = useStableCallback(
     async (command: "side" | "clear", prompt: string = "") => {
       if (workspaceCommandBusy.current || !activeThreadRef || !activeProjectRef) return false;
-      const lastResponse = timelineMessages.findLast(
-        (message) => message.role === "assistant" && !message.streaming && message.runId,
+      const lastResponse = serverVisibleTurnItems.findLast(
+        ({ item }) =>
+          item.type === "assistant_message" && item.status === "completed" && item.runId !== null,
       );
-      if (command === "side" && !lastResponse?.runId) {
+      if (command === "side" && !lastResponse?.item.runId) {
         toastManager.add({ type: "info", title: "Complete a response before forking" });
         return false;
       }
       const source = activeThreadRef;
       return withWorkspaceCommandLock(workspaceCommandBusy, async () => {
         try {
-          if (command === "side" && lastResponse?.runId) {
+          if (command === "side" && lastResponse?.item.runId) {
             const target = await onForkFromRunStable({
-              sourceThreadId: source.threadId,
-              runId: lastResponse.runId,
+              sourceThreadId: lastResponse.sourceThreadId,
+              runId: lastResponse.item.runId,
             });
             if (!target) return false;
             if (prompt) useComposerDraftStore.getState().setPrompt(target, prompt);
@@ -3270,7 +3271,9 @@ export default function ChatView(props: ChatViewProps) {
                 ? { onOpenProjectSettings: handleOpenDraftProjectSettingsStable }
                 : {})}
             />
-            <div className="flex shrink-0 items-center gap-1 [-webkit-app-region:no-drag]">
+          </header>
+          {isServerThread && activeMessageCount > 0 ? (
+            <div className="flex shrink-0 items-center justify-end gap-1 px-4 py-1">
               <Button
                 size="xs"
                 variant="ghost"
@@ -3288,7 +3291,7 @@ export default function ChatView(props: ChatViewProps) {
                 Clear
               </Button>
             </div>
-          </header>
+          ) : null}
 
           <div className="relative flex min-h-0 min-w-0 flex-1">
             <ThreadFindCanvas
