@@ -265,7 +265,7 @@ function threadShell(projectId: ProjectId, index: number): EnvironmentThreadShel
   });
 }
 
-it("filters the sidebar when a thread's project icon is clicked", async () => {
+it("toggles the sidebar project filter when a thread's project icon is clicked", async () => {
   using stack = new DisposableStack();
   const { sidebarProjectScopeKeys, setSidebarProjectScopeKeys } = useUiStateStore.getState();
   stack.defer(() => setSidebarProjectScopeKeys(sidebarProjectScopeKeys));
@@ -284,6 +284,15 @@ it("filters the sidebar when a thread's project icon is clicked", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Filter by first", exact: true }));
   await expect.element(screen.getByText("Thread 0", { exact: true }).first()).toBeVisible();
   await expect.element(screen.getByText("Thread 1", { exact: true })).not.toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("button", { name: "Filter by first", exact: true }));
+  await expect.element(screen.getByText("Thread 1", { exact: true }).first()).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Filter by first", exact: true }));
+  await userEvent.click(screen.getByLabelText("Filter threads by project: first"), {
+    button: "right",
+  });
+  await expect.element(screen.getByText("Thread 1", { exact: true }).first()).toBeVisible();
 });
 
 describe("sidebar render isolation", () => {

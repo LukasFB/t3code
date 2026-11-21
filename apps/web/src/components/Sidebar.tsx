@@ -1113,7 +1113,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       ),
     ),
   );
-  const filterByProject = useStableCallback((key: string) => setProjectScopeKeys([key]));
   const archivedProjectKeys = new Set(
     projectGroups.filter((project) => project.archived).map((project) => project.projectKey),
   );
@@ -1169,6 +1168,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     findThread: (key) => threads.find((candidate) => threadShellKey(candidate) === key),
   });
   const projectScopeKeys = revealWidensScope ? [] : chosenProjectScopeKeys;
+  const filterByProject = useStableCallback((key: string) =>
+    setProjectScopeKeys(projectScopeKeys.length === 1 && projectScopeKeys[0] === key ? [] : [key]),
+  );
   const projectScopeKey = projectScopeKeys.length === 0 ? null : projectScopeKeys.join("\n");
   const toggleProjectScopeKey = (key: string) =>
     setProjectScopeKeys(
@@ -3141,6 +3143,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                   }}
                 >
                   <ComboboxTrigger
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setProjectScopeKeys([]);
+                      dispatchProjectScopeMenu({ type: "open-changed", open: false });
+                    }}
                     render={
                       <SidebarHeaderIconButton
                         label={
