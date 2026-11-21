@@ -1106,6 +1106,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   // loaded. The stored keys are left alone, so the scope returns with its project.
   // An archived project's scope reads as all projects, matching the menu.
   const scopeGroups = pickableProjectGroups(projectGroups);
+  const scopeKeyByProject = new Map(
+    scopeGroups.flatMap((group) =>
+      group.memberProjectRefs.map(
+        (ref) => [`${ref.environmentId}:${ref.projectId}`, group.projectKey] as const,
+      ),
+    ),
+  );
+  const filterByProject = useStableCallback((key: string) => setProjectScopeKeys([key]));
   const archivedProjectKeys = new Set(
     projectGroups.filter((project) => project.archived).map((project) => project.projectKey),
   );
@@ -3604,6 +3612,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                                 `${thread.environmentId}:${thread.projectId}`,
                               ) ?? null
                             }
+                            projectScopeKey={
+                              scopeKeyByProject.get(
+                                `${thread.environmentId}:${thread.projectId}`,
+                              ) ?? null
+                            }
+                            onFilterByProject={filterByProject}
                             providerEntryByInstanceId={
                               providerEntriesByEnvironment.get(thread.environmentId) ??
                               EMPTY_PROVIDER_ENTRIES

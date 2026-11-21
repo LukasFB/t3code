@@ -628,6 +628,8 @@ type SidebarThreadRowProps = {
   jumpLabel: string | null;
   environmentLabel: string | null;
   environmentMachine: EnvironmentMachineKind;
+  projectScopeKey: string | null;
+  onFilterByProject: (key: string) => void;
   project: EnvironmentProject | null;
   projectDisplayName: string | null;
   providerEntryByInstanceId: ReadonlyMap<string, SidebarProviderEntry>;
@@ -1100,6 +1102,28 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     isActive: props.isActive,
   });
 
+  const { project, projectScopeKey } = props;
+  const favicon = project ? <ProjectFavicon project={project} className="size-4 shrink-0" /> : null;
+  const projectIcon =
+    project && projectScopeKey !== null ? (
+      <button
+        type="button"
+        className="inline-flex shrink-0 cursor-pointer rounded-sm focus-visible:outline-ring"
+        aria-label={gt("Filter by {project}", {
+          project: props.projectDisplayName ?? project.title,
+        })}
+        onPointerDown={(event) => event.stopPropagation()}
+        onDoubleClick={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation();
+          props.onFilterByProject(projectScopeKey);
+        }}
+      >
+        {favicon}
+      </button>
+    ) : (
+      favicon
+    );
   const title = isRenaming ? (
     <ThreadRenameInput
       title={renamingTitle}
@@ -1379,9 +1403,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                       "opacity-40 grayscale group-focus-within/sidebar-row:opacity-100 group-focus-within/sidebar-row:grayscale-0 group-hover/sidebar-row:opacity-100 group-hover/sidebar-row:grayscale-0",
                   )}
                 >
-                  {props.project ? (
-                    <ProjectFavicon project={props.project} className="size-4" />
-                  ) : null}
+                  {projectIcon}
                 </span>
               )}
               {draftIndicator}
@@ -1583,9 +1605,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           >
             <div className="flex h-5 min-w-0 items-center gap-1.5">
               {draftIndicator}
-              {props.project ? (
-                <ProjectFavicon project={props.project} className="size-4 shrink-0" />
-              ) : null}
+              {projectIcon}
               {/* Left of the status slot, the pin would slide when hover swaps the
                 label for the wider row controls. */}
               {pinIndicator}

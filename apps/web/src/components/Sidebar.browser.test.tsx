@@ -29,6 +29,7 @@ import { useConnectedEnvironmentIds, usePrimaryEnvironmentId } from "../state/en
 import { readEnvironmentScope, useEnvironmentScope } from "../state/session";
 import { useOrchestrationCommand } from "../state/use-orchestration-command";
 import { useTerminalUiStateStore } from "../terminalUiStateStore";
+import { useUiStateStore } from "../uiStateStore";
 import { readLocalApi } from "../localApi";
 import type { Project } from "../types";
 import Sidebar from "./Sidebar";
@@ -263,6 +264,27 @@ function threadShell(projectId: ProjectId, index: number): EnvironmentThreadShel
     title: `Thread ${index}`,
   });
 }
+
+it("filters the sidebar when a thread's project icon is clicked", async () => {
+  using stack = new DisposableStack();
+  const { sidebarProjectScopeKeys, setSidebarProjectScopeKeys } = useUiStateStore.getState();
+  stack.defer(() => setSidebarProjectScopeKeys(sidebarProjectScopeKeys));
+  const projects = [project("first"), project("second")];
+  vi.mocked(useProjects).mockReturnValue(projects);
+  vi.mocked(useQuietThreadShells).mockReturnValue(
+    projects.map((p, index) => threadShell(p.id, index)),
+  );
+  await using screen = await render(
+    <SidebarProvider>
+      <Sidebar routeReveal={{ observedKey: null, pendingKey: null }} />
+    </SidebarProvider>,
+  );
+
+  await expect.element(screen.getByText("Thread 1", { exact: true }).first()).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Filter by first", exact: true }));
+  await expect.element(screen.getByText("Thread 0", { exact: true }).first()).toBeVisible();
+  await expect.element(screen.getByText("Thread 1", { exact: true })).not.toBeInTheDocument();
+});
 
 describe("sidebar render isolation", () => {
   // regression: #33100 Cmd+J re-rendered every sidebar row, which took hundreds of ms with many threads
