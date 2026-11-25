@@ -289,7 +289,7 @@ it("toggles the sidebar project filter when a thread's project icon is clicked",
   await expect.element(screen.getByText("Thread 1", { exact: true }).first()).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Filter by first", exact: true }));
-  await userEvent.click(screen.getByLabelText("Filter threads by project: first"), {
+  await userEvent.click(screen.getByLabelText("Projects: first"), {
     button: "right",
   });
   await expect.element(screen.getByText("Thread 1", { exact: true }).first()).toBeVisible();

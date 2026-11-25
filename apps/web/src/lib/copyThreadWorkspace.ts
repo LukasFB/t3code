@@ -34,14 +34,16 @@ export async function copyThreadWorkspace<E>(
             (surface) =>
               surface.kind !== "preview" &&
               surface.kind !== "device" &&
-              surface.kind !== "thread" && surface.kind !== "linked-thread",
+              surface.kind !== "thread" &&
+              surface.kind !== "linked-thread",
           ),
           activeSurfaceId:
             sourcePanel.surfaces.find(
               (surface) =>
                 surface.kind !== "preview" &&
                 surface.kind !== "device" &&
-                surface.kind !== "thread" && surface.kind !== "linked-thread",
+                surface.kind !== "thread" &&
+                surface.kind !== "linked-thread",
             )?.id ?? null,
         },
       },

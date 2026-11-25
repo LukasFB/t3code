@@ -5156,7 +5156,10 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       ...REVIEW_DIFF_ARGS,
       ...(input.ignoreWhitespace ? ["--ignore-all-space"] : []),
     ];
-    const readStats = Effect.fn("GitVcsDriver.getReviewDiffPreview.workingStats")(function* (ref: string, env?: NodeJS.ProcessEnv) {
+    const readStats = Effect.fn("GitVcsDriver.getReviewDiffPreview.workingStats")(function* (
+      ref: string,
+      env?: NodeJS.ProcessEnv,
+    ) {
       const root = { cwd, prefix: "", from: ref, to: null, env };
       const range = input.file ? yield* resolveReviewFileRange(root, input.file.path) : root;
       return yield* readReviewStats(range, diffArgs, filePathArgs(range.prefix));
@@ -5188,7 +5191,12 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       if (metadataOnly || stat.files.length === 0) {
         return { stdout: "", stdoutTruncated: false, files: stat.files };
       }
-      const patch = yield* readReviewPatch(stat, diffArgs, filePathArgs(stat.range.prefix), patchLimit);
+      const patch = yield* readReviewPatch(
+        stat,
+        diffArgs,
+        filePathArgs(stat.range.prefix),
+        patchLimit,
+      );
       return { ...patch, files: stat.files };
     });
     const [dirtyTrackedResult, baseResult] = yield* Effect.gen(function* () {

@@ -3700,17 +3700,17 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           case "pinned-divider":
                             items.push(
                               <SidebarDraftBlock
-                          key="draft-sessions"
-                          draftIds={draftIds}
-                          routeDraftComposer={routeDraftComposer}
-                          terminalLabels={draftTerminalLabels}
-                          jumpLabelByDraftId={draftJumpLabelById}
-                          projectByKey={projectByKey}
-                          projectDisplayNameByKey={projectDisplayNameByKey}
-                          routeDraftId={routeDraftIdForRows}
-                          onNavigateToDraft={navigateToDraft}
-                          onDraftContextMenu={handleDraftContextMenu}
-                        />,
+                                key="draft-sessions"
+                                draftIds={draftIds}
+                                routeDraftComposer={routeDraftComposer}
+                                terminalLabels={draftTerminalLabels}
+                                jumpLabelByDraftId={draftJumpLabelById}
+                                projectByKey={projectByKey}
+                                projectDisplayNameByKey={projectDisplayNameByKey}
+                                routeDraftId={routeDraftIdForRows}
+                                onNavigateToDraft={navigateToDraft}
+                                onDraftContextMenu={handleDraftContextMenu}
+                              />,
                             );
                             items.push(
                               <SidebarDragBoundary
