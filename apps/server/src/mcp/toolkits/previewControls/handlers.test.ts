@@ -54,7 +54,7 @@ it.effect.each([
       Effect.provide(
         Layer.merge(
           ServerConfig.layerTest(process.cwd(), { prefix: "t3-preview-controls-" }).pipe(
-            Layer.provide(NodeServices.layer),
+            Layer.provideMerge(NodeServices.layer),
           ),
           NodeCrypto.layer,
         ),

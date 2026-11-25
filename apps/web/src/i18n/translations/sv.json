@@ -3212,7 +3212,10 @@
     {
       "t": "span",
       "i": 2,
-      "c": [" ", "på datorn som öppnade den här sidan"]
+      "c": [
+        " ",
+        "på datorn som öppnade den här sidan"
+      ]
     }
   ],
   "b2d53b4d1d48fbef": [
@@ -3224,7 +3227,10 @@
     {
       "t": "span",
       "i": 2,
-      "c": [" ", "· den som kör den får den här åtkomsten"]
+      "c": [
+        " ",
+        "· den som kör den får den här åtkomsten"
+      ]
     }
   ],
   "c54cc9c75db9dc58": "Godkänn bara en inloggning som du själv precis har startat.",
@@ -12987,5 +12993,31 @@
   "201490988858b511": "återkallad av {by}",
   "99451a5d2d40440f": "Återkallad av {by}.",
   "3ee30a50b70fffab": "Återkallad av {by}: {reason}",
-  "92e129bf413a1220": "återkallad"
+  "92e129bf413a1220": "återkallad",
+  "57ed841545dadb3b": "Åtgärden i arbetsytan misslyckades",
+  "338131cd3d03bc01": "Ny tråd med samma layout",
+  "5d0c71caa8f328b0": "Börja om",
+  "6b1d32fe36e72f8c": "Ny tråd med aktuell arbetsyta",
+  "f39c52056d33d503": "Sökkategori",
+  "045741aa62df51f8": "Alla",
+  "d8d67ff58a76913f": "Meddelanden",
+  "b72d0035839dd9bd": "Leverantören är inte tillgänglig",
+  "c4345dcfc34eb829": "Starta en ny tråd för att byta leverantör",
+  "09b7420f1d8ea027": "Favoritkonfigurationer",
+  "21a09724846b89f0": "Spara aktuell",
+  "b57562b05c91011c": "Ta bort konfigurationen för {model}",
+  "dd9e75ae6cab6fe1": "Välj modell, ansträngning och hastighet och spara kombinationen här.",
+  "74997df84dff22bb": "Använd T3 Code-webbläsaren för den här tråden",
+  "3ec78f37cc6ec0d3": "Tråd: markera som oläst",
+  "62534005d8b4e892": "Tråd: byt namn",
+  "d8b750020432b444": "Ta bort kortkommandot för {command}",
+  "1f2d0e329c5182df": "Ta bort tilldelning",
+  "72ab17b951d5da7f": "Aviseringsvolym",
+  "06b5030e707e2e6c": "Volym och enskilda ljud för den här enheten.",
+  "ce129aac85a1af9b": "Ljud vid slutförande",
+  "b13b63f981a4210a": "Ljud vid begäran om inmatning eller godkännande",
+  "bf0f37f53a4e2d62": "Provlyssna",
+  "d55c5f6145d222d3": "Arbetsyta i skrivbordsappen",
+  "dc25b006876f2ab8": "Terminal i full bredd",
+  "f65d8a8ebfefe2db": "Låt terminalen sträcka sig under chatten och den högra panelen."
 }

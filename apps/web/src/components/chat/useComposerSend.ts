@@ -4,6 +4,7 @@ import { m } from "~/i18n/messages";
 import { isClearComposerCommand, parseSideChatCommand } from "@t3tools/shared/composerTrigger";
 import { readWorktreeBaseBranch } from "../../worktreeRepositoryChoiceStore";
 import { armFreshSession, disarmFreshSession, readFreshSessionArm } from "./freshSessionArms";
+import { expandBrowserMention } from "../../lib/browserMention";
 import {
   mergeDirectPreviewAnnotation,
   resolveBackgroundDraftWorkspaceOptions,
@@ -1006,8 +1007,12 @@ export function useComposerSend(input: ComposerSendInput) {
       reviewComments: composerReviewCommentsSnapshot,
       threadContexts: composerThreadContextsSnapshot,
       environmentContexts: composerEnvironmentContextsSnapshot,
-      messageText: messageTextForSend,
+      messageText: rawMessageTextForSend,
     } = sendSnapshot;
+    const messageTextForSend = expandBrowserMention(
+      rawMessageTextForSend,
+      scopeThreadRef(environmentId, threadIdForSend),
+    );
     const {
       missingWorktreeBaseBranch,
       baseBranchForWorktree,
@@ -1396,7 +1401,7 @@ export function useComposerSend(input: ComposerSendInput) {
         branch: activeThreadBranch!,
         selections: multipleModelSelections,
         targets: multipleTargets,
-        sendSnapshot,
+        sendSnapshot: { ...sendSnapshot, messageText: messageTextForSend },
         createdAt: messageCreatedAt,
         attachmentsPromise: turnAttachmentsPromise,
         usesAttachmentUploads: turnUsesAttachmentUploads,

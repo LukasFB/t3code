@@ -86,6 +86,41 @@ export function resolveProviderInstanceAcpRegistryIconUrl(input: {
   );
 }
 
+export function ProviderInstanceBadge(props: {
+  displayName: string;
+  accentColor?: string | undefined;
+  badgeContent?: "initials" | "none";
+  className?: string;
+  indicatorBackground?: string;
+  "aria-hidden"?: boolean;
+}) {
+  const accentColor = normalizeProviderAccentColor(props.accentColor);
+  return (
+    <span
+      className={cn(
+        "inline-flex h-3.5 min-w-3.5 shrink-0 items-center justify-center rounded-full border px-0.5 text-4xs font-semibold leading-none shadow-sm",
+        accentColor
+          ? "bg-(--provider-accent) text-(--provider-accent-foreground)"
+          : "bg-card text-muted-foreground",
+        props.className,
+      )}
+      style={
+        {
+          "--provider-accent": accentColor,
+          "--provider-accent-foreground": accentColor
+            ? providerAccentForegroundColor(accentColor)
+            : undefined,
+          borderColor: props.indicatorBackground ?? "var(--card)",
+        } as CSSProperties
+      }
+      aria-hidden={props["aria-hidden"]}
+      aria-label={props.displayName}
+    >
+      {props.badgeContent === "none" ? null : providerInstanceInitials(props.displayName)}
+    </span>
+  );
+}
+
 export const ProviderInstanceIcon = memo(function ProviderInstanceIcon(props: {
   driverKind: ProviderDriverKind;
   displayName: string;
@@ -104,13 +139,6 @@ export const ProviderInstanceIcon = memo(function ProviderInstanceIcon(props: {
   const packageIcon = providerClients.get(props.driverKind)?.icon;
   const indicatorBackground = props.indicatorBackground ?? "var(--card)";
   const accentColor = normalizeProviderAccentColor(props.accentColor);
-  const accentStyle = accentColor
-    ? ({
-        "--provider-accent": accentColor,
-        "--provider-accent-foreground": providerAccentForegroundColor(accentColor),
-      } as CSSProperties)
-    : undefined;
-  const badgeContent = props.badgeContent ?? "initials";
   const iconClassName = cn(props.size === "compact" && "size-3.5", props.iconClassName);
   const isAcpRegistry = props.driverKind === "acpRegistry";
   // A custom OpenAI-compatible endpoint has no brand: show its name, marked with the protocol.
@@ -127,7 +155,6 @@ export const ProviderInstanceIcon = memo(function ProviderInstanceIcon(props: {
         "relative isolate z-30 inline-flex shrink-0 items-center justify-center overflow-visible",
         props.className,
       )}
-      style={accentStyle}
       data-provider-accent-color={accentColor}
     >
       {isAcpRegistry ? (
@@ -172,22 +199,20 @@ export const ProviderInstanceIcon = memo(function ProviderInstanceIcon(props: {
           {providerInstanceInitials(props.displayName)}
         </span>
       )}
-      {isCustomEndpoint ? null : props.showBadge ? (
-        <span
+      {!isCustomEndpoint && props.showBadge ? (
+        <ProviderInstanceBadge
+          displayName={props.displayName}
+          accentColor={accentColor}
+          badgeContent={props.badgeContent ?? "initials"}
           className={cn(
-            "pointer-events-none absolute right-0 bottom-0 z-10 flex h-3.5 min-w-3.5 items-center justify-center rounded-full border px-0.5 text-4xs font-semibold leading-none shadow-sm",
-            accentColor
-              ? "bg-(--provider-accent) text-(--provider-accent-foreground)"
-              : "bg-card text-muted-foreground",
+            "pointer-events-none absolute right-0 bottom-0 z-10",
             props.size === "compact" &&
               "right-[-0.1875rem] bottom-[-0.1875rem] h-3 min-w-3 px-0.5 text-5xs",
             props.badgeClassName,
           )}
-          style={{ borderColor: indicatorBackground }}
+          indicatorBackground={indicatorBackground}
           aria-hidden
-        >
-          {badgeContent === "initials" ? providerInstanceInitials(props.displayName) : null}
-        </span>
+        />
       ) : null}
     </span>
   );

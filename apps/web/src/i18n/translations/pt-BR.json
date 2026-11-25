@@ -3212,7 +3212,10 @@
     {
       "t": "span",
       "i": 2,
-      "c": [" ", "no computador que abriu esta página"]
+      "c": [
+        " ",
+        "no computador que abriu esta página"
+      ]
     }
   ],
   "b2d53b4d1d48fbef": [
@@ -3224,7 +3227,10 @@
     {
       "t": "span",
       "i": 2,
-      "c": [" ", "· quem executar recebe este acesso"]
+      "c": [
+        " ",
+        "· quem executar recebe este acesso"
+      ]
     }
   ],
   "c54cc9c75db9dc58": "Aprove apenas um login que você acabou de iniciar.",
@@ -12980,5 +12986,31 @@
   "201490988858b511": "retirada por {by}",
   "99451a5d2d40440f": "Retirada por {by}.",
   "3ee30a50b70fffab": "Retirada por {by}: {reason}",
-  "92e129bf413a1220": "retirada"
+  "92e129bf413a1220": "retirada",
+  "57ed841545dadb3b": "Falha na ação do espaço de trabalho",
+  "338131cd3d03bc01": "Nova conversa com o mesmo layout",
+  "5d0c71caa8f328b0": "Recomeçar",
+  "6b1d32fe36e72f8c": "Nova conversa com o espaço de trabalho atual",
+  "f39c52056d33d503": "Categoria de busca",
+  "045741aa62df51f8": "Tudo",
+  "d8d67ff58a76913f": "Mensagens",
+  "b72d0035839dd9bd": "Provedor indisponível",
+  "c4345dcfc34eb829": "Inicie uma conversa para trocar de provedor",
+  "09b7420f1d8ea027": "Configurações favoritas",
+  "21a09724846b89f0": "Salvar atual",
+  "b57562b05c91011c": "Remover configuração de {model}",
+  "dd9e75ae6cab6fe1": "Escolha modelo, esforço e velocidade e salve a combinação aqui.",
+  "74997df84dff22bb": "Usar o navegador do T3 Code desta conversa",
+  "3ec78f37cc6ec0d3": "Conversa: marcar como não lida",
+  "62534005d8b4e892": "Conversa: renomear",
+  "d8b750020432b444": "Remover atalho de {command}",
+  "1f2d0e329c5182df": "Desatribuir",
+  "72ab17b951d5da7f": "Volume das notificações",
+  "06b5030e707e2e6c": "Volume e sons individuais deste dispositivo.",
+  "ce129aac85a1af9b": "Som de conclusão",
+  "b13b63f981a4210a": "Som de solicitação de entrada ou aprovação",
+  "bf0f37f53a4e2d62": "Ouvir",
+  "d55c5f6145d222d3": "Espaço de trabalho do desktop",
+  "dc25b006876f2ab8": "Terminal de largura total",
+  "f65d8a8ebfefe2db": "Estenda o terminal abaixo do chat e do painel direito."
 }

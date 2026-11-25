@@ -3520,8 +3520,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         const threadKey = scopedThreadKey(
                           scopeThreadRef(thread.environmentId, thread.id),
                         );
-                        const isCard =
-                          section === "active" || section === "pinned" || section === "working";
+                        const isCard = section === "active" || section === "working";
                         const rowVariant = folderRow
                           ? folderRowsMultiline
                             ? "folder-multiline"
@@ -3631,20 +3630,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         );
                       };
                       const from = isContextDrag ? null : (dragState?.activeSection ?? null);
-                      const items: ReactNode[] = [
-                        <SidebarDraftBlock
-                          key="draft-sessions"
-                          draftIds={draftIds}
-                          routeDraftComposer={routeDraftComposer}
-                          terminalLabels={draftTerminalLabels}
-                          jumpLabelByDraftId={draftJumpLabelById}
-                          projectByKey={projectByKey}
-                          projectDisplayNameByKey={projectDisplayNameByKey}
-                          routeDraftId={routeDraftIdForRows}
-                          onNavigateToDraft={navigateToDraft}
-                          onDraftContextMenu={handleDraftContextMenu}
-                        />,
-                      ];
+                      const items: ReactNode[] = [];
                       for (const item of sidebarListItems) {
                         if (item.kind === "thread") {
                           // Folders draw active rows in their own place below.
@@ -3684,18 +3670,32 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                                 key="pinned-header"
                                 marker="pinned-header"
                                 label={gt("Pinned", { $context: "sidebar section" })}
-                                visible={from !== null}
+                                visible={from !== null || pinnedThreads.length > 0}
                                 isDropTarget={dragTargetSection === "pinned"}
                               />,
                             );
                             break;
                           case "pinned-divider":
                             items.push(
+                              <SidebarDraftBlock
+                          key="draft-sessions"
+                          draftIds={draftIds}
+                          routeDraftComposer={routeDraftComposer}
+                          terminalLabels={draftTerminalLabels}
+                          jumpLabelByDraftId={draftJumpLabelById}
+                          projectByKey={projectByKey}
+                          projectDisplayNameByKey={projectDisplayNameByKey}
+                          routeDraftId={routeDraftIdForRows}
+                          onNavigateToDraft={navigateToDraft}
+                          onDraftContextMenu={handleDraftContextMenu}
+                        />,
+                            );
+                            items.push(
                               <SidebarDragBoundary
                                 key="pinned-divider"
                                 marker="pinned-divider"
                                 label={gt("Active", { $context: "sidebar section" })}
-                                visible={from !== null}
+                                visible={from !== null || pinnedThreads.length > 0}
                                 isDropTarget={dragTargetSection === "active"}
                               />,
                             );

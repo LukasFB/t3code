@@ -3213,7 +3213,10 @@
     {
       "t": "span",
       "i": 2,
-      "c": [" ", "auf dem Computer, der diese Seite geöffnet hat"]
+      "c": [
+        " ",
+        "auf dem Computer, der diese Seite geöffnet hat"
+      ]
     }
   ],
   "b2d53b4d1d48fbef": [
@@ -3225,7 +3228,10 @@
     {
       "t": "span",
       "i": 2,
-      "c": [" ", "· wer es ausführt, erhält diesen Zugriff"]
+      "c": [
+        " ",
+        "· wer es ausführt, erhält diesen Zugriff"
+      ]
     }
   ],
   "c54cc9c75db9dc58": "Genehmige nur eine Anmeldung, die du gerade selbst gestartet hast.",
@@ -12980,5 +12986,31 @@
   "201490988858b511": "zurückgezogen von {by}",
   "99451a5d2d40440f": "Zurückgezogen von {by}.",
   "3ee30a50b70fffab": "Zurückgezogen von {by}: {reason}",
-  "92e129bf413a1220": "zurückgezogen"
+  "92e129bf413a1220": "zurückgezogen",
+  "57ed841545dadb3b": "Workspace-Aktion fehlgeschlagen",
+  "338131cd3d03bc01": "Neuer Thread, gleiches Layout",
+  "5d0c71caa8f328b0": "Neu beginnen",
+  "6b1d32fe36e72f8c": "Neuer Thread mit aktuellem Workspace",
+  "f39c52056d33d503": "Suchkategorie",
+  "045741aa62df51f8": "Alle",
+  "d8d67ff58a76913f": "Nachrichten",
+  "b72d0035839dd9bd": "Anbieter nicht verfügbar",
+  "c4345dcfc34eb829": "Starte einen neuen Thread, um den Anbieter zu wechseln",
+  "09b7420f1d8ea027": "Favorisierte Konfigurationen",
+  "21a09724846b89f0": "Aktuelle speichern",
+  "b57562b05c91011c": "Konfiguration für {model} entfernen",
+  "dd9e75ae6cab6fe1": "Wähle Modell, Denkaufwand und Geschwindigkeit und speichere die Kombination hier.",
+  "74997df84dff22bb": "Den T3-Code-Browser dieses Threads verwenden",
+  "3ec78f37cc6ec0d3": "Thread: Als ungelesen markieren",
+  "62534005d8b4e892": "Thread: Umbenennen",
+  "d8b750020432b444": "Tastenkürzel für {command} aufheben",
+  "1f2d0e329c5182df": "Zuweisung aufheben",
+  "72ab17b951d5da7f": "Benachrichtigungslautstärke",
+  "06b5030e707e2e6c": "Lautstärke und einzelne Signaltöne für dieses Gerät.",
+  "ce129aac85a1af9b": "Ton bei Abschluss",
+  "b13b63f981a4210a": "Ton bei Eingabe- und Freigabeanfragen",
+  "bf0f37f53a4e2d62": "Probehören",
+  "d55c5f6145d222d3": "Desktop-Arbeitsbereich",
+  "dc25b006876f2ab8": "Terminal in voller Breite",
+  "f65d8a8ebfefe2db": "Terminal unter Chat und rechtem Panel ausdehnen."
 }

@@ -1,6 +1,7 @@
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { m as resolveMessage } from "~/i18n/messages";
 import { useAtomValue } from "@effect/atom-react";
+import { useDesktopPreferences } from "../../desktopPreferences";
 import { NotificationSettings } from "./NotificationSettings";
 import { PRIVACY_POLICY_URL } from "../../legalLinks";
 import { CheckIcon } from "lucide-react";
@@ -1233,6 +1234,7 @@ export function GeneralSettingsPanel() {
 export function ChatSettingsPanel() {
   const setting = useSearchableSetting();
   const gt = useGT();
+  const [desktopPreferences, setDesktopPreferences] = useDesktopPreferences();
   const modifierLabel = isMacPlatform(navigator.platform) ? "⌘" : "Ctrl";
   const sendShortcutOptions = [
     { value: "enter", label: "Enter" },
@@ -1247,6 +1249,21 @@ export function ChatSettingsPanel() {
 
   return (
     <SettingsPageContainer>
+      <SettingsSection id="desktop-workspace" title={gt("Desktop workspace")}>
+        <SettingsRow
+          title={gt("Full-width terminal")}
+          description={gt("Extend the terminal below both chat and the right panel.")}
+          control={
+            <Switch
+              aria-label={gt("Full-width terminal")}
+              checked={desktopPreferences.terminalFullWidth}
+              onCheckedChange={(checked) =>
+                setDesktopPreferences({ ...desktopPreferences, terminalFullWidth: checked })
+              }
+            />
+          }
+        />
+      </SettingsSection>
       <SettingsSection id="composer" title={gt("Composer")}>
         <SettingsRow
           {...setting("composer-rich-text")}

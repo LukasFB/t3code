@@ -1,3 +1,4 @@
+import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { AuthPreviewOperateScope, type EnvironmentId } from "@t3tools/contracts";
 import type { AnyRouter } from "@tanstack/react-router";
 import { msg } from "gt-react";
@@ -65,8 +66,14 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
       ? target.threadRef.environmentId
       : (useComposerDraftStore.getState().getDraftSession(target.draftId)?.environmentId ?? null);
   };
+  const readPreviewThreadRef = () => {
+    const target = readRouteTarget();
+    if (target?.kind === "server") return target.threadRef;
+    const draft = target ? useComposerDraftStore.getState().getDraftSession(target.draftId) : null;
+    return draft ? scopeThreadRef(draft.environmentId, draft.threadId) : null;
+  };
   const readPreviewOpen = () => {
-    const threadRef = readRouteThreadRef();
+    const threadRef = readPreviewThreadRef();
     // Store-only on purpose: the URL-aware arbitration lives in ChatView's
     // preview toggle, which the action bus reaches.
     return threadRef
@@ -165,7 +172,7 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
       },
       "preview.toggle": (event) => {
         claim(event);
-        const threadRef = readRouteThreadRef();
+        const threadRef = readPreviewThreadRef();
         if (!threadRef || (!canOperatePreview(threadRef.environmentId) && !readPreviewOpen())) {
           return;
         }

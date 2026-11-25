@@ -215,7 +215,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
     setActiveResultIndex(0);
   };
   const handleSearchResultClick = (item: SettingsSearchItem) => {
-    clearSearch();
     setCompactSearchOpen(false);
     const targetId = item.targetId ?? item.id;
     revealSettingsSearchTarget(targetId);
@@ -295,6 +294,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                 }}
                 placeholder={gt("Search")}
                 aria-label={gt("Search settings")}
+                data-settings-search=""
                 role="combobox"
                 aria-autocomplete="list"
                 aria-expanded={isSearching && hasResults}

@@ -34,11 +34,20 @@ export class DesktopUserDataInitializationError extends Schema.TaggedError<Deskt
 export const resolveUserDataPath = Effect.fn("desktop.userData.resolveUserDataPath")(
   function* (input: {
     readonly appDataDirectory: string;
+    readonly baseDir?: string;
+    readonly homeDirectory?: string;
     readonly isDevelopment: boolean;
     readonly platform: NodeJS.Platform;
   }) {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
+    if (
+      input.baseDir &&
+      input.homeDirectory &&
+      path.resolve(input.baseDir) !== path.join(input.homeDirectory, ".t3")
+    ) {
+      return path.join(input.baseDir, "electron-profile");
+    }
     const names = input.isDevelopment
       ? { current: "t3code-dev", legacy: "T3 Code (Dev)" }
       : { current: "t3code-v2", legacy: "T3 Code (Alpha)" };

@@ -89,6 +89,7 @@ function lockBackgroundScroll(popup: HTMLElement | null) {
 export const DockedPickerContext = createContext<{ modelLabel: string }>({ modelLabel: "" });
 
 export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
+  renderFavoriteConfigurations?: ((query: string) => ReactNode) | undefined;
   environmentId: EnvironmentId | null;
   workspaceCwd?: string | null;
   activeInstanceId: ProviderInstanceId;
@@ -292,6 +293,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
 
   const picker = (
     <ModelPickerContent
+      renderFavoriteConfigurations={props.renderFavoriteConfigurations}
       searchInputRef={searchInputRef}
       environmentId={props.environmentId}
       workspaceCwd={props.workspaceCwd ?? null}

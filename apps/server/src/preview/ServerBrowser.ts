@@ -1120,6 +1120,22 @@ const make = Effect.gen(function* () {
     }),
   );
 
+  let shuttingDown = false;
+  // Chromium can close pages on a group signal before the server scope starts releasing resources.
+  const onShutdown = () => {
+    shuttingDown = true;
+  };
+  yield* Effect.acquireRelease(
+    Effect.sync(() => {
+      process.on("SIGINT", onShutdown);
+      process.on("SIGTERM", onShutdown);
+    }),
+    () =>
+      Effect.sync(() => {
+        process.off("SIGINT", onShutdown);
+        process.off("SIGTERM", onShutdown);
+      }),
+  );
   const dropTab = (tab: ServerTab, closeSession: boolean, reopening = false) => {
     const key = tabKey(tab.threadId, tab.tabId);
     if (tabs.get(key) !== tab) return;
@@ -1153,7 +1169,7 @@ const make = Effect.gen(function* () {
     void tab.recording?.encoder.close().catch(constVoid);
     void NodeFSP.rm(downloadDir(tab), { recursive: true, force: true }).catch(constVoid);
     reportLiveTabs();
-    if (closeSession) {
+    if (closeSession && !shuttingDown) {
       runFork(manager.close({ threadId: tab.threadId, tabId: tab.tabId }).pipe(Effect.ignore));
     }
   };
@@ -3786,6 +3802,7 @@ const make = Effect.gen(function* () {
   );
   yield* Effect.addFinalizer(() =>
     Effect.promise(async () => {
+      shuttingDown = true;
       await contexts.close();
     }),
   );

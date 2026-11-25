@@ -31,12 +31,49 @@ const collectEvents = Effect.gen(function* () {
 }).pipe(Effect.withSpan("preview.test.collectEvents"));
 
 const layer = PreviewManager.layer.pipe(
-  Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-preview-manager-" })),
-  Layer.provide(NodeCrypto.layer),
-  Layer.provide(NodeServices.layer),
+  Layer.provideMerge(ServerConfig.layerTest(process.cwd(), { prefix: "t3-preview-manager-" })),
+  Layer.provideMerge(NodeCrypto.layer),
+  Layer.provideMerge(NodeServices.layer),
 );
 
 it.layer(layer)("PreviewManager", (it) => {
+  it.effect("reopens ordinary tabs at their last URL across manager restarts", () =>
+    Effect.gen(function* () {
+      const threadId = freshThreadId();
+      const first = yield* Effect.scoped(
+        Effect.gen(function* () {
+          const manager = yield* PreviewManager.make;
+          const first = yield* manager.open({
+            threadId,
+            url: "https://example.org",
+            profileId: "work",
+          });
+          const closed = yield* manager.open({ threadId });
+          yield* manager.open({ threadId, profileId: "incognito", url: "https://private.example" });
+          yield* manager.close({ threadId, tabId: closed.tabId });
+          yield* manager.reportStatus({
+            threadId,
+            tabId: first.tabId,
+            navStatus: { _tag: "Success", url: "https://example.org/docs", title: "Docs" },
+            canGoBack: true,
+            canGoForward: false,
+          });
+          return first;
+        }),
+      );
+      const restarted = yield* PreviewManager.make;
+      const { sessions } = yield* restarted.list({ threadId });
+      expect(sessions).toMatchObject([
+        {
+          tabId: first.tabId,
+          profileId: "work",
+          canGoBack: false,
+          navStatus: { _tag: "Loading", url: "https://example.org/docs" },
+        },
+      ]);
+    }),
+  );
+
   it.effect("opens a session and emits opened with normalized URL", () =>
     Effect.gen(function* () {
       const threadId = freshThreadId();

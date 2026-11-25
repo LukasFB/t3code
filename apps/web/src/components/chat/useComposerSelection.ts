@@ -134,7 +134,7 @@ export function useComposerSelection(input: ComposerSelectionInput) {
   const onProviderModelSelect = (
     instanceId: ProviderInstanceId,
     model: string,
-    options?: { focusComposer?: boolean },
+    options?: { focusComposer?: boolean; modelOptions?: ModelSelection["options"] },
   ) => {
     if (!activeThread) return;
     cancelHeldComposerSend(composerTargetKey(composerDraftTarget));
@@ -196,6 +196,7 @@ export function useComposerSelection(input: ComposerSelectionInput) {
       return;
     }
     const rememberedOptions =
+      options?.modelOptions ??
       useComposerDraftStore.getState().stickyOptionsByModelByProvider[instanceId]?.[resolvedModel];
     const threadSelection = activeThread.modelSelection;
     // This pick replaces the stored options, so the thread's own model carries them over.

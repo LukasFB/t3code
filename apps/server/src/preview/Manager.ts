@@ -11,18 +11,25 @@ import {
   type PreviewAdjustInput,
   FILL_PREVIEW_VIEWPORT,
   PreviewSessionLookupError,
-  type PreviewSessionSnapshot,
+  PreviewSessionSnapshot,
+  INCOGNITO_BROWSER_PROFILE_ID,
 } from "@t3tools/contracts";
 import {
   isPreviewUrlNormalizationError,
   newPreviewTabId,
   normalizePreviewUrl,
 } from "@t3tools/shared/preview";
+import { writeFileStringAtomically } from "@t3tools/shared/atomicWrite";
+import * as FileSystem from "effect/FileSystem";
+import * as Path from "effect/Path";
+import * as Schema from "effect/Schema";
+import { ServerConfig } from "../config.ts";
 import * as Context from "effect/Context";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Queue from "effect/Queue";
 import * as PubSub from "effect/PubSub";
 import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
@@ -81,7 +88,34 @@ interface ManagerState {
   readonly revision: number;
 }
 
-const initialState: ManagerState = { sessions: new Map(), revision: 0 };
+const SavedTabs = Schema.fromJsonString(Schema.Array(PreviewSessionSnapshot));
+
+const encodeSavedTabs = Schema.encodeEffect(SavedTabs);
+const decodeSavedTabs = Schema.decodeUnknownEffect(SavedTabs);
+
+const tabUrl = (snapshot: PreviewSessionSnapshot) =>
+  snapshot.navStatus._tag === "Idle" ? undefined : snapshot.navStatus.url;
+
+function restorableTab(snapshot: PreviewSessionSnapshot): PreviewSessionSnapshot | null {
+  if (
+    snapshot.profileId === INCOGNITO_BROWSER_PROFILE_ID ||
+    (snapshot.automationOwner && snapshot.reveal !== true) ||
+    snapshot.reveal === false
+  )
+    return null;
+  const url = tabUrl(snapshot);
+  if (url && !/^https?:\/\//i.test(url)) return null;
+  return {
+    threadId: snapshot.threadId,
+    tabId: snapshot.tabId,
+    navStatus: url ? { _tag: "Loading", url, title: "" } : { _tag: "Idle" },
+    canGoBack: false,
+    canGoForward: false,
+    profileId: snapshot.profileId,
+    runtime: snapshot.runtime,
+    updatedAt: snapshot.updatedAt,
+  };
+}
 
 type PreviewEventDraft = PreviewEvent extends infer Event
   ? Event extends { readonly revision: number }
@@ -129,7 +163,65 @@ const currentIsoTimestamp = DateTime.now.pipe(Effect.map(DateTime.formatIso));
 export const make = Effect.gen(function* PreviewManagerMake() {
   const random = yield* SecureRandom.SecureRandom;
   const serverEpoch = yield* random.uuidV4();
-  const stateRef = yield* SynchronizedRef.make<ManagerState>(initialState);
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const config = yield* ServerConfig;
+  const filePath = path.join(config.stateDir, "open-browser-tabs.json");
+  const saved = yield* fs.readFileString(filePath).pipe(
+    Effect.flatMap(decodeSavedTabs),
+    Effect.catchIf(
+      (error) => error._tag === "PlatformError" && error.reason._tag === "NotFound",
+      () => Effect.succeed([]),
+    ),
+    Effect.catch((error) =>
+      Effect.logWarning("Could not load saved browser tabs", error._tag).pipe(Effect.as([])),
+    ),
+  );
+  const restored = new Map<string, PreviewSessionState>();
+  for (const snapshot of saved) {
+    restored.set(compositeKey(snapshot.threadId, snapshot.tabId), {
+      threadId: snapshot.threadId,
+      tabId: snapshot.tabId,
+      snapshot,
+    });
+  }
+  const stateRef = yield* SynchronizedRef.make<ManagerState>({ sessions: restored, revision: 0 });
+  const writeTabs = Effect.fn("PreviewManager.saveTabs")(function* (
+    sessions: ManagerState["sessions"],
+  ) {
+    const tabs = Array.from(sessions.values(), ({ snapshot }) => restorableTab(snapshot)).filter(
+      (tab) => tab !== null,
+    );
+    yield* encodeSavedTabs(tabs).pipe(
+      Effect.flatMap((contents) => writeFileStringAtomically({ filePath, contents })),
+      Effect.provideService(FileSystem.FileSystem, fs),
+      Effect.provideService(Path.Path, path),
+      Effect.ignore({ log: true }),
+    );
+  });
+  const writes = yield* Queue.sliding<ManagerState["sessions"]>(1);
+  let lastRequested: ManagerState["sessions"] | undefined;
+  let lastWritten: ManagerState["sessions"] | undefined;
+  const saveTabs = (sessions: ManagerState["sessions"]) => {
+    lastRequested = sessions;
+    return Queue.offer(writes, sessions);
+  };
+  yield* Effect.addFinalizer(() =>
+    lastRequested && lastWritten !== lastRequested ? writeTabs(lastRequested) : Effect.void,
+  );
+  yield* Queue.take(writes).pipe(
+    Effect.flatMap((sessions) =>
+      writeTabs(sessions).pipe(
+        Effect.tap(() =>
+          Effect.sync(() => {
+            lastWritten = sessions;
+          }),
+        ),
+      ),
+    ),
+    Effect.forever,
+    Effect.forkScoped,
+  );
   const eventsPubSub = yield* PubSub.unbounded<PreviewEvent>();
   const events: Stream.Stream<PreviewEvent> = Stream.fromPubSub(eventsPubSub);
   const beforeClose = new Set<
@@ -174,6 +266,11 @@ export const make = Effect.gen(function* PreviewManagerMake() {
             }
             const sessions = new Map(state.sessions);
             sessions.set(compositeKey(threadId, tabId), next);
+            if (
+              tabUrl(session.snapshot) !== tabUrl(next.snapshot) &&
+              (restorableTab(session.snapshot) || restorableTab(next.snapshot))
+            )
+              yield* saveTabs(sessions);
             return [{ kind: "ok", result } as ModifyResult, { sessions, revision }] as readonly [
               ModifyResult,
               ManagerState,
@@ -192,7 +289,7 @@ export const make = Effect.gen(function* PreviewManagerMake() {
     function* (input) {
       const runtime = input.runtime;
       // Persisted client surfaces must not bind to a different tab after a server restart.
-      const tabId = `${newPreviewTabId()}${runtime === "server" ? `_${serverEpoch}` : ""}`;
+      const tabId = `${newPreviewTabId()}_${serverEpoch}`;
       const updatedAt = yield* currentIsoTimestamp;
       const snapshot: PreviewSessionSnapshot = {
         threadId: input.threadId,
@@ -222,6 +319,7 @@ export const make = Effect.gen(function* PreviewManagerMake() {
             tabId,
             snapshot,
           });
+          if (restorableTab(snapshot)) yield* saveTabs(sessions);
           input.beforePublish?.(snapshot);
           yield* PubSub.publish(eventsPubSub, {
             type: "opened",
@@ -440,9 +538,16 @@ export const make = Effect.gen(function* PreviewManagerMake() {
           return Effect.succeed([undefined, state] as const);
         }
         return Effect.as(
-          Effect.forEach(eventsToEmit, (event) => PubSub.publish(eventsPubSub, event), {
-            discard: true,
-          }),
+          (targets.some((target) => restorableTab(target.snapshot))
+            ? saveTabs(sessions)
+            : Effect.void
+          ).pipe(
+            Effect.andThen(
+              Effect.forEach(eventsToEmit, (event) => PubSub.publish(eventsPubSub, event), {
+                discard: true,
+              }),
+            ),
+          ),
           [undefined, { sessions, revision }] as const,
         );
       });

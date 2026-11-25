@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import * as Schema from "effect/Schema";
 
 const SOUND_SECONDS = 0.6;
 
-const audio = { currentTime: 0, started: 0 };
+const audio = { currentTime: 0, started: 0, volumes: [] as number[] };
 
 class FakeAudioContext {
   state = "running";
@@ -16,10 +17,20 @@ class FakeAudioContext {
   decodeAudioData() {
     return Promise.resolve({ duration: SOUND_SECONDS });
   }
+  createGain() {
+    return {
+      gain: { value: 1 },
+      connect() {
+        audio.volumes.push(this.gain.value);
+      },
+      disconnect() {},
+    };
+  }
   createBufferSource() {
     return {
       buffer: null,
       connect() {},
+      disconnect() {},
       start() {
         audio.started += 1;
       },
@@ -37,6 +48,7 @@ beforeEach(() => {
   vi.resetModules();
   audio.currentTime = 0;
   audio.started = 0;
+  audio.volumes = [];
   vi.stubGlobal("AudioContext", FakeAudioContext);
   vi.stubGlobal(
     "fetch",
@@ -82,6 +94,7 @@ describe("playNotificationSound", () => {
     );
 
     expect(audio.started).toBe(1);
+    expect(audio.volumes).toEqual([0.65]);
   });
 
   it("still plays an input alert over a completion sound", async () => {
@@ -97,8 +110,29 @@ describe("playNotificationSound", () => {
     const { playNotificationSound } = await loadUnlocked();
     await playNotificationSound("completion", () => false);
 
+    const { setLocalStorageItem } = await import("./hooks/useLocalStorage");
+    const preferences = {
+      notificationVolume: 0.25,
+      completionSound: false,
+      inputSound: false,
+      terminalFullWidth: false,
+    };
+    setLocalStorageItem("t3code:desktop-preferences", preferences, Schema.Unknown);
+    await playNotificationSound("completion", () => true);
+    await playNotificationSound("input", () => true);
+    expect(audio.started).toBe(0);
+
+    setLocalStorageItem(
+      "t3code:desktop-preferences",
+      { ...preferences, completionSound: true },
+      Schema.Unknown,
+    );
+
     await playNotificationSound("completion", () => true);
 
     expect(audio.started).toBe(1);
+    expect(audio.volumes).toEqual([0.25]);
+    await playNotificationSound("input", () => true, true);
+    expect(audio.started).toBe(2);
   });
 });

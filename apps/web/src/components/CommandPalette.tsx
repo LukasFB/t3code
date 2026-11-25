@@ -388,6 +388,7 @@ function CommandPaletteDialog(props: {
 
   return (
     <CommandDialogPopup
+      size="workspace"
       aria-label={
         props.mode === "files"
           ? gt("File picker")
@@ -469,6 +470,7 @@ function OpenCommandPaletteDialog(props: {
   const setQuery = (query: string) => dispatchSearch({ type: "query", query });
   const deferredQuery = useDeferredValue(query);
   const isActionsOnly = deferredQuery.startsWith(">");
+  const [category, setCategory] = useState("all");
   const [highlightedItemValue, setHighlightedItemValue] = useState<string | null>(null);
   const resultListRef = useRef<LegendListRef | null>(null);
   // A pushed view drops the typed highlight until the user moves it again.
@@ -1348,6 +1350,22 @@ function OpenCommandPaletteDialog(props: {
   };
 
   const actionItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [];
+  if (activeThread) {
+    for (const [command, title] of [
+      ["clear", gt("Fresh thread with current workspace")],
+    ] as const) {
+      actionItems.push({
+        kind: "action",
+        value: `workspace:${command}`,
+        title,
+        searchTerms: [command, "thread", "workspace", "fork", "clear"],
+        icon: <MessageSquareIcon className={ITEM_ICON_CLASS} />,
+        run: async () => {
+          window.dispatchEvent(new CustomEvent("t3code:workspace-command", { detail: command }));
+        },
+      });
+    }
+  }
 
   if (projects.length > 0) {
     const activeProjectTitle =
@@ -2602,6 +2620,23 @@ function OpenCommandPaletteDialog(props: {
   } else if (isBrowsing) {
     displayedGroups = relativePathNeedsActiveProject ? [] : browseGroups;
   }
+  if (!deferredQuery.trim() && !currentView && !isBrowsing) {
+    if (category === "projects")
+      displayedGroups = [
+        { value: "projects-search", label: gt("Projects"), items: projectSearchItems },
+      ];
+    if (category === "threads")
+      displayedGroups = [{ value: "threads-search", label: gt("Threads"), items: allThreadItems }];
+  }
+  if (category !== "all" && !currentView && !isBrowsing) {
+    displayedGroups = displayedGroups.filter((group) => {
+      const value = group.value;
+      if (category === "messages") return value === "threads-messages";
+      if (category === "threads") return value.includes("threads") && value !== "threads-messages";
+      if (category === "projects") return value.includes("projects");
+      return !value.includes("threads") && !value.includes("projects");
+    });
+  }
   const resultRows = buildCommandPaletteRows(displayedGroups);
   const autoHighlightsFirstRow =
     !isBrowsing && !isRemoteProjectCloneFlow && newProjectFlow === null;
@@ -3165,6 +3200,36 @@ function OpenCommandPaletteDialog(props: {
       showBackHint={isSubmenu}
       value={query}
     >
+      {!currentView && !isBrowsing && !newProjectFlow && !addProjectCloneFlow ? (
+        <div
+          className="flex shrink-0 gap-2 border-b px-3 py-2"
+          role="group"
+          aria-label={gt("Search category")}
+        >
+          {Object.entries({
+            all: gt("All"),
+            actions: gt("Actions"),
+            projects: gt("Projects"),
+            threads: gt("Threads"),
+            messages: gt("Messages"),
+          }).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={category === value}
+              className={cn(
+                "rounded-md px-3 py-1 text-xs capitalize",
+                category === value
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:bg-accent",
+              )}
+              onClick={() => setCategory(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {newProjectPathPreview !== null ? (
         <NewProjectSummary
           name={newProjectName}

@@ -7,6 +7,33 @@ import * as PlatformError from "effect/PlatformError";
 
 import { clearStaleGpuCaches, resolveUserDataPath } from "./DesktopUserData.ts";
 
+it.effect.each(["darwin", "linux", "win32"] as const)(
+  "isolates a custom T3 home from the installed profile on %s",
+  (platform) =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const directory = yield* fs.makeTempDirectoryScoped({ prefix: "t3-custom-profile-" });
+      const input = {
+        appDataDirectory: path.join(directory, "app-data"),
+        homeDirectory: directory,
+        baseDir: path.join(directory, "custom-home"),
+        isDevelopment: false,
+        platform,
+      };
+      assert.equal(yield* resolveUserDataPath(input), path.join(input.baseDir, "electron-profile"));
+      assert.equal(
+        yield* resolveUserDataPath({ ...input, isDevelopment: true }),
+        path.join(input.baseDir, "electron-profile"),
+      );
+      assert.isFalse(yield* fs.exists(input.appDataDirectory));
+      assert.equal(
+        yield* resolveUserDataPath({ ...input, baseDir: path.join(directory, ".t3") }),
+        path.join(input.appDataDirectory, "t3code-v2"),
+      );
+    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
 it.effect.each(["t3code", "T3 Code (Alpha)"])(
   "preserves Windows credential keys from %s without copying browser databases",
   (sourceName) =>

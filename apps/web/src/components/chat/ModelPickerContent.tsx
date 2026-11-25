@@ -345,6 +345,7 @@ function WindowKeyDownListener({ onKeyDown }: { onKeyDown: (event: KeyboardEvent
 }
 
 export const ModelPickerContent = memo(function ModelPickerContent(props: {
+  renderFavoriteConfigurations?: ((query: string) => ReactNode) | undefined;
   environmentId: EnvironmentId | null;
   /** Keeps the open provider tab's catalog fresh for this directory. */
   workspaceCwd?: string | null;
@@ -1141,6 +1142,9 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
               onTouchStart={(e) => e.stopPropagation()}
             />
 
+            {selectedInstanceId === "favorites"
+              ? props.renderFavoriteConfigurations?.(searchQuery)
+              : null}
             <ModelPickerList
               listRef={modelListRef}
               itemKeys={filteredItemKeys}

@@ -3212,7 +3212,10 @@
     {
       "t": "span",
       "i": 2,
-      "c": [" ", "sur l’ordinateur qui a ouvert cette page"]
+      "c": [
+        " ",
+        "sur l’ordinateur qui a ouvert cette page"
+      ]
     }
   ],
   "b2d53b4d1d48fbef": [
@@ -3224,7 +3227,10 @@
     {
       "t": "span",
       "i": 2,
-      "c": [" ", "· quiconque l’exécute obtient cet accès"]
+      "c": [
+        " ",
+        "· quiconque l’exécute obtient cet accès"
+      ]
     }
   ],
   "c54cc9c75db9dc58": "N’approuvez qu’une connexion que vous venez de lancer.",
@@ -12980,5 +12986,31 @@
   "201490988858b511": "retirée par {by}",
   "99451a5d2d40440f": "Retirée par {by}.",
   "3ee30a50b70fffab": "Retirée par {by} : {reason}",
-  "92e129bf413a1220": "retirée"
+  "92e129bf413a1220": "retirée",
+  "57ed841545dadb3b": "Échec de l’action dans l’espace de travail",
+  "338131cd3d03bc01": "Nouveau fil avec la même disposition",
+  "5d0c71caa8f328b0": "Recommencer",
+  "6b1d32fe36e72f8c": "Nouveau fil avec l’espace de travail actuel",
+  "f39c52056d33d503": "Catégorie de recherche",
+  "045741aa62df51f8": "Tout",
+  "d8d67ff58a76913f": "Messages",
+  "b72d0035839dd9bd": "Fournisseur indisponible",
+  "c4345dcfc34eb829": "Ouvrez un nouveau fil pour changer de fournisseur",
+  "09b7420f1d8ea027": "Configurations favorites",
+  "21a09724846b89f0": "Enregistrer la configuration actuelle",
+  "b57562b05c91011c": "Supprimer la configuration de {model}",
+  "dd9e75ae6cab6fe1": "Choisissez le modèle, l’effort et la vitesse, puis enregistrez la combinaison ici.",
+  "74997df84dff22bb": "Utiliser le navigateur T3 Code de ce fil",
+  "3ec78f37cc6ec0d3": "Fil : marquer comme non lu",
+  "62534005d8b4e892": "Fil : renommer",
+  "d8b750020432b444": "Retirer le raccourci de {command}",
+  "1f2d0e329c5182df": "Désattribuer",
+  "72ab17b951d5da7f": "Volume des notifications",
+  "06b5030e707e2e6c": "Volume et sons individuels de cet appareil.",
+  "ce129aac85a1af9b": "Son de fin",
+  "b13b63f981a4210a": "Son de demande de saisie ou d’approbation",
+  "bf0f37f53a4e2d62": "Écouter",
+  "d55c5f6145d222d3": "Espace de travail de bureau",
+  "dc25b006876f2ab8": "Terminal pleine largeur",
+  "f65d8a8ebfefe2db": "Étendre le terminal sous le chat et le panneau droit."
 }

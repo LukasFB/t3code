@@ -1,8 +1,13 @@
 import { m } from "../i18n/messages";
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
-import { useGT, useMessages } from "gt-react";
+import { msg, useGT, useMessages } from "gt-react";
 import { ChildThreadApprovals } from "./chat/ChildThreadApprovals";
 import { draftSupportedRuntimeModes } from "./chat/runtimeModeConfig";
+import { Button } from "./ui/button";
+import { copyThreadWorkspace } from "../lib/copyThreadWorkspace";
+import { previewEnvironment as workspacePreviewEnvironment } from "../state/preview";
+import { useDesktopPreferences } from "../desktopPreferences";
+import type { OpenPreviewMutation } from "../browser/openFileInPreview";
 import { workspaceAreaProps } from "../lib/workspaceFocus";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { resolveNewThreadModelSelection } from "@t3tools/shared/usageLimits";
@@ -143,6 +148,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import { BackgroundThreadContext } from "./chat/backgroundThread";
 import { WorkspaceMutationIdContext } from "./chat/ChatMarkdownMedia";
 import { useLocation, useNavigate } from "@tanstack/react-router";
@@ -316,7 +322,7 @@ import { NativeChildWorkDialog } from "./chat/NativeChildWorkDialog";
 import { ProviderSubagentBar } from "./chat/ProviderSubagentBar";
 import { getTriggerDisplayModelName } from "./chat/providerIconUtils";
 import { resolveScrollToEndClearance } from "./composerFooterLayout";
-import { ChatHeader } from "./chat/ChatHeader";
+import { ChatHeader, type ChatHeaderHandle } from "./chat/ChatHeader";
 import { useSideChat } from "./chat/useSideChat";
 import { sideThreadComposer, sideThreadKindOf } from "@t3tools/client-runtime/side-thread";
 import { useOpenSurfaceInMainView } from "../hooks/useOpenSurfaceInMainView";
@@ -465,10 +471,37 @@ type ChatViewProps =
 const DismissedFallbackWindowSchema = Schema.NullOr(Schema.String);
 
 const ignoreComposerFocus = () => {};
+async function createFreshWorkspace<E>(
+  create: () => ReturnType<ReturnType<typeof useNewThreadHandler>>,
+  source: ScopedThreadRef,
+  openPreview: OpenPreviewMutation<E>,
+) {
+  try {
+    const created = await create();
+    if (!created) return false;
+    await copyThreadWorkspace(
+      source,
+      scopeThreadRef(source.environmentId, created.threadId),
+      openPreview,
+    );
+    return true;
+  } catch (error) {
+    toastManager.add({
+      type: "error",
+      title: m(msg("Workspace action failed")),
+      description: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
 
 export default function ChatView(props: ChatViewProps) {
   const gt = useGT();
   const messages = useMessages();
+  const [desktopPreferences] = useDesktopPreferences();
+  const openWorkspacePreview = useAtomCommand(workspacePreviewEnvironment.open);
+  const workspaceCommandBusy = useRef(false);
+  const chatHeaderRef = useRef<ChatHeaderHandle>(null);
   const {
     environmentId,
     threadId,
@@ -1101,6 +1134,25 @@ export default function ChatView(props: ChatViewProps) {
   })();
   const activeThreadRef = useActiveThreadRef(activeThread);
   const activeThreadKey = activeThreadRef ? scopedThreadKey(activeThreadRef) : null;
+  const [renamingTitleState, setRenamingTitleState] = useState<{
+    threadKey: string | null;
+    title: string;
+  } | null>(null);
+  if (
+    renamingTitleState &&
+    (renamingTitleState.threadKey !== activeThreadKey || !canOperateThread)
+  ) {
+    setRenamingTitleState(null);
+  }
+  const renamingTitle =
+    canOperateThread && renamingTitleState && renamingTitleState.threadKey === activeThreadKey
+      ? renamingTitleState.title
+      : null;
+  const handleRenamingTitleChange = (title: string | null) => {
+    setRenamingTitleState(title === null ? null : { threadKey: activeThreadKey, title });
+  };
+  const hidePanelForTitleRename = prefersPlanSidebarSheet && renamingTitle !== null;
+
   const activeEnvironmentServerBrowser = useEnvironmentSupportsServerBrowser(
     activeThreadRef?.environmentId ?? null,
   );
@@ -1206,7 +1258,10 @@ export default function ChatView(props: ChatViewProps) {
   const canMaximizeRightPanel = rightPanelOpen;
   // An embedded side chat has no panel; a stale maximized flag would hide its own column.
   const rightPanelMaximized =
-    !embedded && canMaximizeRightPanel && rightPanelState.maximized === true;
+    !embedded &&
+    !hidePanelForTitleRename &&
+    canMaximizeRightPanel &&
+    rightPanelState.maximized === true;
   const inlineRightPanelOwnsTitleBar = rightPanelOpen && !shouldUsePlanSidebarSheet;
   const [threadPanelPopoverHandle] = useState(PopoverCreateHandle);
   const [chatCanvasStore] = useState(createChatCanvasStore);
@@ -2946,6 +3001,24 @@ export default function ChatView(props: ChatViewProps) {
       ...terminalShortcuts,
       ...rightPanelShortcuts,
       ...threadLifecycleShortcuts,
+      "thread.rename": ({ event }) => {
+        if (
+          !isServerThread ||
+          !activeThreadId ||
+          !canOperateThread ||
+          document.querySelector(
+            '[role="dialog"]:not([data-closed]), [role="alertdialog"]:not([data-closed])',
+          )
+        )
+          return false;
+        if (event.repeat) return;
+        if (activeThreadRef && rightPanelMaximized && !prefersPlanSidebarSheet) {
+          flushSync(() => {
+            useRightPanelStore.getState().setMaximized(activeThreadRef, false);
+          });
+        }
+        chatHeaderRef.current?.startRename();
+      },
       "thread.copyReference": ({ event }) => {
         if (!event.repeat) copyActiveThreadReference();
       },
@@ -3214,6 +3287,58 @@ export default function ChatView(props: ChatViewProps) {
     });
   };
   const onWorktreeSetupWorkLocallyStable = useStableCallback(onWorktreeSetupWorkLocally);
+  const clearWorkspace = useStableCallback(async (prompt: string = "") => {
+    if (
+      embedded ||
+      !canOperateThread ||
+      workspaceCommandBusy.current ||
+      !activeThreadRef ||
+      !activeProjectRef
+    )
+      return false;
+    const source = activeThreadRef;
+    workspaceCommandBusy.current = true;
+    const result = await createFreshWorkspace(
+      () =>
+        handleNewThread(activeProjectRef, {
+          forceNew: true,
+          branch: activeThreadBranch,
+          worktreePath: activeThreadWorktreePath,
+          envMode: activeThreadWorktreePath ? "worktree" : "local",
+          prompt,
+        }),
+      source,
+      openWorkspacePreview,
+    );
+    workspaceCommandBusy.current = false;
+    return result;
+  });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- registers the fresh-workspace shortcut and command-palette action
+  useEffect(() => {
+    if (embedded) return;
+    const keydown = (event: KeyboardEvent) => {
+      if (
+        !(event.metaKey || event.ctrlKey) ||
+        !event.altKey ||
+        !event.shiftKey ||
+        event.repeat ||
+        event.code !== "KeyN"
+      )
+        return;
+      if (document.querySelector('[role="dialog"]')) return;
+      event.preventDefault();
+      void clearWorkspace();
+    };
+    const action = (event: Event) => {
+      if ((event as CustomEvent<string>).detail === "clear") void clearWorkspace();
+    };
+    window.addEventListener("keydown", keydown);
+    window.addEventListener("t3code:workspace-command", action);
+    return () => {
+      window.removeEventListener("keydown", keydown);
+      window.removeEventListener("t3code:workspace-command", action);
+    };
+  }, [clearWorkspace, embedded]);
   const onComposerSendStable = useStableCallback(onSend);
   const sendPreviewAnnotation = (
     annotation: PreviewAnnotationPayload,
@@ -3534,11 +3659,26 @@ export default function ChatView(props: ChatViewProps) {
     addFolders: addDroppedFoldersToComposer,
   });
 
+  const terminalDrawers = embedded ? null : (
+    <ChatTerminalDrawers
+      activeThreadKey={activeThreadKey}
+      activeTerminalOpen={Boolean(terminalUiState.terminalOpen)}
+      composerHeight={composerReservedHeight}
+      launchContext={activeTerminalLaunchContext ?? null}
+      splitShortcutLabel={splitTerminalShortcutLabel ?? undefined}
+      splitVerticalShortcutLabel={splitTerminalVerticalShortcutLabel ?? undefined}
+      newShortcutLabel={newTerminalShortcutLabel ?? undefined}
+      closeShortcutLabel={closeTerminalShortcutLabel ?? undefined}
+      keybindings={keybindings}
+      onAddTerminalContext={addTerminalContextToDraftStable}
+    />
+  );
   const content = (
     <div
-      ref={setWorkspaceLayoutElement}
-      className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background"
+      data-workspace-layout
+      className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background"
     >
+      <div ref={setWorkspaceLayoutElement} className="relative flex min-h-0 min-w-0 flex-1">
       {embedded ? null : (
         <DeviceSetupDialogHost
           threadKey={activeThreadKey}
@@ -3588,6 +3728,7 @@ export default function ChatView(props: ChatViewProps) {
             {!rightPanelControlsAtRoot && !rightPanelControlsInPanel ? panelLayoutControls : null}
             {inlineRightPanelOwnsTitleBar ? threadPanelHeaderControl : null}
             <ChatHeader
+              ref={chatHeaderRef} renamingTitle={renamingTitle} onRenamingTitleChange={handleRenamingTitleChange}
               activeThreadEnvironmentId={activeThread.environmentId}
               activeThreadId={activeThread.id}
               isServerThread={isServerThread}
@@ -3606,6 +3747,9 @@ export default function ChatView(props: ChatViewProps) {
           </header>
         )}
 
+        {!embedded && isServerThread && activeMessageCount > 0 ? (
+          <div className="flex shrink-0 justify-end px-4 py-1"><Button size="xs" variant="ghost" disabled={!canOperateThread} aria-label={gt("Fresh thread, same layout")} onClick={() => void clearWorkspace()}>{gt("Clear")}</Button></div>
+        ) : null}
         <div className="relative flex min-h-0 min-w-0 flex-1">
           <ThreadFindCanvas
             findOptions={{
@@ -4208,30 +4352,17 @@ export default function ChatView(props: ChatViewProps) {
           </ThreadFindCanvas>
         </div>
 
-        {embedded ? null : (
-          <ChatTerminalDrawers
-            activeThreadKey={activeThreadKey}
-            activeTerminalOpen={Boolean(terminalUiState.terminalOpen)}
-            composerHeight={composerReservedHeight}
-            launchContext={activeTerminalLaunchContext ?? null}
-            splitShortcutLabel={splitTerminalShortcutLabel ?? undefined}
-            splitVerticalShortcutLabel={splitTerminalVerticalShortcutLabel ?? undefined}
-            newShortcutLabel={newTerminalShortcutLabel ?? undefined}
-            closeShortcutLabel={closeTerminalShortcutLabel ?? undefined}
-            keybindings={keybindings}
-            onAddTerminalContext={addTerminalContextToDraftStable}
-          />
-        )}
+        {!desktopPreferences.terminalFullWidth ? terminalDrawers : null}
       </div>
 
       {rightPanelPresent && activeThreadRef && !embedded ? (
         <ChatRightPanel
           sheet={shouldUsePlanSidebarSheet}
           workspaceLayoutElement={workspaceLayoutElement}
-          widthStorageKey={`t3code:preview-panel-width:${activeThreadKey}`}
+          widthStorageKey="t3code:preview-panel-width"
           sheetAnimationDurationMs={panelAnimationsActive ? panelAnimationDurationMs : 0}
           onCloseSheet={closePreviewPanelStable}
-          open={rightPanelOpen}
+          open={rightPanelOpen && !hidePanelForTitleRename}
           keybindings={keybindings}
           getShortcutContext={getShortcutContextStable}
           maximized={rightPanelMaximized}
@@ -4290,6 +4421,8 @@ export default function ChatView(props: ChatViewProps) {
         </ChatRightPanel>
       ) : null}
 
+      </div>
+      {desktopPreferences.terminalFullWidth ? terminalDrawers : null}
       <RevertConfirmHost
         threadKey={routeThreadKey}
         environmentId={environmentId}
