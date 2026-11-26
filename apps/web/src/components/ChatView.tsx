@@ -483,6 +483,7 @@ async function createFreshWorkspace<E>(
       source,
       scopeThreadRef(source.environmentId, created.threadId),
       openPreview,
+      "fresh",
     );
     return true;
   } catch (error) {
@@ -3130,6 +3131,8 @@ export default function ChatView(props: ChatViewProps) {
   const sendSideChatStable = useStableCallback(sideChat.open);
   const { onConfirmRevertStable, onForkFromRunStable, onRevertTimelineTurnStable } =
     useTimelineRewind({
+      copyForkWorkspace: (target) =>
+        copyThreadWorkspace(routeThreadRef, target, openWorkspacePreview, "fork"),
       environmentId,
       routeThreadRef,
       routeThreadKey,

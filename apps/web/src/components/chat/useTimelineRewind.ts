@@ -36,9 +36,12 @@ import { useOrchestrationCommand } from "../../state/use-orchestration-command";
 import { useAtomQueryRunner } from "../../state/use-atom-query-runner";
 import { rewindToMessage } from "./chatViewSend";
 import { makeThreadErrorSetter } from "../ChatView.logic";
+import { toastManager } from "../ui/toast";
+
 interface TimelineRewindInput {
   readonly environmentId: EnvironmentId;
   readonly routeThreadRef: ScopedThreadRef;
+  readonly copyForkWorkspace: (target: ScopedThreadRef) => Promise<void>;
   readonly routeThreadKey: string;
   readonly currentRouteThreadKeyRef: { readonly current: string | null };
   readonly serverProjection: ThreadStructure | null;
@@ -65,6 +68,7 @@ export function useTimelineRewind(input: TimelineRewindInput) {
     environmentId,
     routeThreadRef,
     routeThreadKey,
+    copyForkWorkspace,
     currentRouteThreadKeyRef,
     serverProjection,
     activeThread,
@@ -222,6 +226,15 @@ export function useTimelineRewind(input: TimelineRewindInput) {
         ),
       );
       return;
+    }
+    try {
+      await copyForkWorkspace(targetThreadRef);
+    } catch (error) {
+      toastManager.add({
+        type: "error",
+        title: m(msg("Workspace action failed")),
+        description: thrownErrorMessage(error, m) ?? String(error),
+      });
     }
     await navigate({
       to: "/$environmentId/$threadId",
