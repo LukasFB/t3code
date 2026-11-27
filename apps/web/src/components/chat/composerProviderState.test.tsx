@@ -6,7 +6,11 @@ import {
   type ProviderOptionSelection,
   type ServerProviderModel,
 } from "@t3tools/contracts";
-import { getComposerProviderState, getComposerReasoningStep } from "./composerProviderState";
+import {
+  composerTurnSpeed,
+  getComposerProviderState,
+  getComposerReasoningStep,
+} from "./composerProviderState";
 import { readPromptUltrathink } from "./TraitsPicker";
 
 const PROVIDER: ProviderDriverKind = ProviderDriverKind.make("codex");
@@ -55,6 +59,28 @@ function selections(
 ): ReadonlyArray<ProviderOptionSelection> {
   return entries.map(([id, value]) => ({ id, value }));
 }
+
+it("chooses the fastest advertised speed and uses Standard for a plain send", () => {
+  const standard = { id: "default", label: "Standard" };
+  const fast = { id: "priority", label: "Fast" };
+  const ultra = { id: "ultrafast", label: "Ultrafast" };
+  const speeds = (choices: (typeof fast)[]) =>
+    modelWith([selectDescriptor("serviceTier", choices)]);
+  expect(
+    composerTurnSpeed(PROVIDER, MODEL, speeds([standard, fast, ultra]), "fastest")?.value,
+  ).toBe("ultrafast");
+  expect(composerTurnSpeed(PROVIDER, MODEL, speeds([standard, fast]), "fastest")?.value).toBe(
+    "priority",
+  );
+  expect(composerTurnSpeed(PROVIDER, MODEL, speeds([standard, fast]), "standard")?.value).toBe(
+    "default",
+  );
+  expect(
+    composerTurnSpeed(PROVIDER, MODEL, modelWith([booleanDescriptor("fastMode")]), "fastest")
+      ?.value,
+  ).toBe(true);
+  expect(composerTurnSpeed(PROVIDER, MODEL, modelWith([]), "fastest")).toBeUndefined();
+});
 
 describe("getComposerProviderState", () => {
   it("uses descriptor defaults for display without dispatching them as overrides", () => {

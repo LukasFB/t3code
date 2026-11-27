@@ -77,6 +77,7 @@ import {
 import {
   ProviderApprovalDecision,
   ProviderApprovalFullAccessOverride,
+  ProviderApprovalPushHooks,
   ProviderApprovalOption,
   ProviderInteractionMode,
   ProviderRequestKind,
@@ -756,6 +757,8 @@ export type OrchestrationV2DelegatedCompletionDelivery =
 
 export const OrchestrationV2DelegatedCompletionCohort = Schema.Struct({
   disposition: Schema.Literals(["open", "stopped", "disposed"]),
+  /** Reopened for a follow-up after a Stop; the tasks that Stop interrupted still need the Stop note. */
+  reopenedAfterStop: Schema.optionalKey(Schema.Literal(true)),
   nextGeneration: PositiveInt,
   delivery: Schema.NullOr(OrchestrationV2DelegatedCompletionDelivery),
 });
@@ -816,6 +819,12 @@ export const OrchestrationV2RunOutput = Schema.Struct({
 });
 export type OrchestrationV2RunOutput = typeof OrchestrationV2RunOutput.Type;
 
+export const TurnSpeedOption = Schema.Union([
+  Schema.Struct({ id: Schema.Literal("serviceTier"), value: TrimmedNonEmptyString }),
+  Schema.Struct({ id: Schema.Literal("fastMode"), value: Schema.Boolean }),
+]);
+export type TurnSpeedOption = typeof TurnSpeedOption.Type;
+
 export const OrchestrationV2Run = Schema.Struct({
   id: RunId,
   threadId: ThreadId,
@@ -828,7 +837,10 @@ export const OrchestrationV2Run = Schema.Struct({
   activeAttemptId: Schema.NullOr(RunAttemptId),
   status: OrchestrationV2RunStatus,
   queuePosition: Schema.optional(Schema.NullOr(PositiveInt)),
+  queuedTurnSpeed: Schema.optional(TurnSpeedOption),
   queueHeld: Schema.optional(Schema.Boolean),
+  /** The sender asked for a separate turn; it is not an ordering barrier for a later auto send. */
+  explicitQueue: Schema.optional(Schema.Literal(true)),
   steerWhenReadyRunId: Schema.optional(RunId),
   requestedAt: Schema.DateTimeUtc,
   startedAt: Schema.NullOr(Schema.DateTimeUtc),
@@ -1229,6 +1241,8 @@ export const OrchestrationV2ProviderThreadNativeMetadata = Schema.Struct({
   claudeAttachmentBudget: Schema.optional(
     Schema.Struct({ bytesUsed: NonNegativeInt, pagesUsed: NonNegativeInt }),
   ),
+  /** MCP app notes already in the Claude session's history: note key to a digest of its text. */
+  claudeDeliveredAppContext: Schema.optional(Schema.Record(Schema.String, Schema.String)),
 });
 export type OrchestrationV2ProviderThreadNativeMetadata =
   typeof OrchestrationV2ProviderThreadNativeMetadata.Type;
@@ -2015,6 +2029,7 @@ export const OrchestrationV2TurnItem = Schema.Union([
     reason: Schema.optional(Schema.String),
     fullAccessOverride: Schema.optional(ProviderApprovalFullAccessOverride),
     appName: Schema.optional(Schema.String),
+    pushHooks: Schema.optional(ProviderApprovalPushHooks),
     options: Schema.optional(Schema.Array(ProviderApprovalOption)),
   }),
   Schema.Struct({
@@ -2916,6 +2931,7 @@ export const OrchestrationV2TurnItemJson = Schema.Union([
     reason: Schema.optional(Schema.String),
     fullAccessOverride: Schema.optional(ProviderApprovalFullAccessOverride),
     appName: Schema.optional(Schema.String),
+    pushHooks: Schema.optional(ProviderApprovalPushHooks),
     options: Schema.optional(Schema.Array(ProviderApprovalOption)),
   }),
   Schema.Struct({
@@ -3355,6 +3371,7 @@ export const OrchestrationV2Command = Schema.Union([
         text: Schema.String,
         attachments: Schema.Array(ChatAttachment),
         context: Schema.optional(OrchestrationMessageContext),
+        turnSpeed: Schema.optional(TurnSpeedOption),
         titleSeed: Schema.optional(TrimmedNonEmptyString),
         scheduledTaskId: Schema.optional(ScheduledTaskId),
         senderThreadId: Schema.optional(ThreadId),
@@ -3624,6 +3641,7 @@ export const OrchestrationV2Command = Schema.Union([
     attachments: Schema.Array(ChatAttachment),
     titleSeed: Schema.optional(TrimmedNonEmptyString),
     modelSelection: Schema.optional(ModelSelection),
+    turnSpeed: Schema.optional(TurnSpeedOption),
     sourcePlanRef: Schema.optional(Schema.Struct({ threadId: ThreadId, planId: PlanId })),
     restartContinuationOfRunId: Schema.optional(RunId),
     usageLimitContinuationOfRunId: Schema.optional(RunId),
@@ -3632,6 +3650,7 @@ export const OrchestrationV2Command = Schema.Union([
     steerFollowUpAfterRunOrdinal: Schema.optional(NonNegativeInt),
     usageLimitRecoveryRequestId: Schema.optional(CommandId),
     deliveryIntent: Schema.optional(Schema.Literals(["auto", "steer", "restart"])),
+    explicitQueue: Schema.optional(Schema.Literal(true)),
     delegatedCompletion: Schema.optional(
       Schema.Struct({
         parentRunId: RunId,
@@ -4182,6 +4201,7 @@ export const OrchestrationV2ThreadLaunchInput = Schema.Struct({
   workspaceStrategy: OrchestrationV2ThreadLaunchWorkspaceStrategy,
   initialMessage: Schema.optional(
     Schema.Struct({
+      turnSpeed: Schema.optional(TurnSpeedOption),
       messageId: Schema.optional(MessageId),
       text: Schema.String,
       context: Schema.optional(OrchestrationMessageContext),

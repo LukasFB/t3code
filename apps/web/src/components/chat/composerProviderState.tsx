@@ -12,7 +12,7 @@ import {
   getProviderOptionCurrentValue,
   getProviderOptionDescriptors,
   isClaudeUltrathinkPrompt,
-  normalizeModelSlug,
+  resolveSelectableModel,
   withImplicitFastModeDefault,
 } from "@t3tools/shared/model";
 
@@ -59,6 +59,50 @@ type ComposerTraitsTarget = {
   includePlanAgent?: boolean | undefined;
 };
 
+export function composerFastestSpeed(
+  provider: ProviderDriverKind,
+  model: string,
+  models: ReadonlyArray<ServerProviderModel>,
+) {
+  const { optionDescriptors } = getProviderModelCapabilities(models, model, provider);
+  for (const descriptor of optionDescriptors ?? []) {
+    if (descriptor.id === "fastMode" && descriptor.type === "boolean") {
+      return { icon: "fast", option: { id: "fastMode", value: true } } as const;
+    }
+    if (descriptor.id === "serviceTier" && descriptor.type === "select") {
+      for (const label of ["Ultrafast", "Fast"] as const) {
+        const tier = descriptor.options.find((option) => option.label === label);
+        if (tier)
+          return {
+            icon: label === "Ultrafast" ? "ultrafast" : "fast",
+            option: { id: "serviceTier", value: tier.id },
+          } as const;
+      }
+    }
+  }
+}
+
+export function composerTurnSpeed(
+  provider: ProviderDriverKind,
+  model: string,
+  models: ReadonlyArray<ServerProviderModel>,
+  intent: import("../../composer-logic").ComposerSubmissionIntent | undefined,
+): import("@t3tools/contracts").TurnSpeedOption | undefined {
+  if (intent === "fastest") return composerFastestSpeed(provider, model, models)?.option;
+  if (intent !== "standard") return;
+  const { optionDescriptors } = getProviderModelCapabilities(models, model, provider);
+  for (const descriptor of optionDescriptors ?? []) {
+    if (descriptor.id === "serviceTier" && descriptor.type === "select") {
+      const choice = descriptor.options.find(
+        (option) => option.id === "default" || option.label === "Standard",
+      );
+      if (choice) return { id: "serviceTier", value: choice.id };
+    }
+    if (descriptor.id === "fastMode" && descriptor.type === "boolean")
+      return { id: "fastMode", value: false };
+  }
+}
+
 export function getComposerPromptInjectionState(prompt: string): ComposerPromptInjectionState {
   return isClaudeUltrathinkPrompt(prompt) ? "ultrathink" : "none";
 }
@@ -87,9 +131,7 @@ export function getComposerProviderState(input: ComposerProviderStateInput): Com
     includePlanAgent,
   } = input;
   if (keepsUnavailableModelOptions(provider, model)) {
-    const normalizedModel = normalizeModelSlug(model, provider);
-    const modelIsInCatalog = models.some((candidate) => candidate.slug === normalizedModel);
-    if (!modelIsInCatalog) {
+    if (resolveSelectableModel(provider, model, models) === null) {
       const preservedOptions = modelOptions?.filter(
         (option) => includePlanAgent || option.id !== "agent" || option.value !== "plan",
       );

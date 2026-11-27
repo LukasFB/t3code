@@ -14,6 +14,7 @@ import {
   PlayIcon,
   CornerUpRightIcon,
   ListPlusIcon,
+  ZapIcon,
 } from "lucide-react";
 import { useEnvironmentIdentificationMode } from "~/hooks/useSettings";
 import type { MessageResolver } from "~/i18n/messages";
@@ -22,8 +23,10 @@ import { cn, isMacPlatform } from "~/lib/utils";
 import { useShortcutModifierState } from "../../shortcutModifierState";
 import { StageBackdropButtonArt, useSidebarStageBackdropVariant } from "../SidebarStageBackdrop";
 import { Button } from "../ui/button";
+import { UltrafastIcon } from "../Icons";
 import { Spinner } from "../ui/spinner";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { SharedTooltipTrigger } from "../ui/shared-tooltip";
 import {
   alternateComposerDispatchAction,
   resolveComposerDispatchMode,
@@ -48,6 +51,8 @@ interface ComposerPrimaryActionsProps {
   runId?: string | null;
   followUpBehavior?: "queue" | "steer";
   canSteer?: boolean;
+  speedIcon?: "fast" | "ultrafast" | undefined;
+  speedMode?: boolean;
   alternateShortcutLabel?: string | null;
   /** Dictation is running; Send finishes it and submits once the transcript lands. */
   voiceInputActive?: boolean;
@@ -156,36 +161,34 @@ function StopGenerationButton({
   const gt = useGT();
   const isStopDisabled = stopPhase === "pending";
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <button
-            type="button"
-            className={cn(
-              "flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-destructive/90 text-white shadow-xs shadow-destructive/24 inset-shadow-control-highlight transition-colors duration-150 hover:bg-destructive active:inset-shadow-control-pressed active:shadow-none disabled:cursor-default disabled:opacity-64 disabled:hover:bg-destructive/90 [&_svg]:pointer-events-none",
-              insidePendingAction ? "size-8 sm:size-7" : "size-8 sm:h-8 sm:w-8",
-            )}
-            onPointerDown={preserveComposerFocusOnPointerDown ? preventPointerFocus : undefined}
-            disabled={!canOperateThread || isStopDisabled}
-            onClick={() => {
-              if (!canOperateThread || isStopDisabled) return;
-              onStopRequested();
-              onInterrupt();
-            }}
-            aria-label={stopPhase === "pending" ? gt("Stopping") : gt("Stop generation")}
-          />
-        }
-      >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-          <rect x="2" y="2" width="8" height="8" rx="1.5" />
-        </svg>
-      </TooltipTrigger>
-      <TooltipPopup>
-        {stopPhase === "pending"
+    <SharedTooltipTrigger
+      render={
+        <button
+          type="button"
+          className={cn(
+            "flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-destructive/90 text-white shadow-xs shadow-destructive/24 inset-shadow-control-highlight transition-colors duration-150 hover:bg-destructive active:inset-shadow-control-pressed active:shadow-none disabled:cursor-default disabled:opacity-64 disabled:hover:bg-destructive/90 [&_svg]:pointer-events-none",
+            insidePendingAction ? "size-8 sm:size-7" : "size-8 sm:h-8 sm:w-8",
+          )}
+          onPointerDown={preserveComposerFocusOnPointerDown ? preventPointerFocus : undefined}
+          disabled={!canOperateThread || isStopDisabled}
+          onClick={() => {
+            if (!canOperateThread || isStopDisabled) return;
+            onStopRequested();
+            onInterrupt();
+          }}
+          aria-label={stopPhase === "pending" ? gt("Stopping") : gt("Stop generation")}
+        />
+      }
+      label={
+        stopPhase === "pending"
           ? gt("Stopping…")
-          : gt("Interrupt", { $context: "verb, stops the running agent" })}
-      </TooltipPopup>
-    </Tooltip>
+          : gt("Interrupt", { $context: "verb, stops the running agent" })
+      }
+    >
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+        <rect x="2" y="2" width="8" height="8" rx="1.5" />
+      </svg>
+    </SharedTooltipTrigger>
   );
 }
 
@@ -243,6 +246,8 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   runId = null,
   followUpBehavior = "steer",
   canSteer = true,
+  speedIcon,
+  speedMode = false,
   alternateShortcutLabel = null,
   voiceInputActive = false,
   isSendBusy,
@@ -271,13 +276,20 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
     : undefined;
   const environmentIdentificationMode = useEnvironmentIdentificationMode();
   const shortcutModifiers = useShortcutModifierState();
+  const speedModifierHeld =
+    (isMacPlatform(navigator.platform)
+      ? shortcutModifiers.metaKey && !shortcutModifiers.ctrlKey
+      : shortcutModifiers.ctrlKey && !shortcutModifiers.metaKey) &&
+    !shortcutModifiers.altKey &&
+    !shortcutModifiers.shiftKey;
+  const SpeedIcon = speedIcon === "ultrafast" ? UltrafastIcon : ZapIcon;
   const isQueuing =
     !isEditingQueuedMessage &&
     resolveComposerDispatchMode({
       running: isRunning,
       activeTurnDefault: followUpBehavior,
       canSteer,
-      alternateModifier: shortcutModifiers.metaKey || shortcutModifiers.ctrlKey,
+      alternateModifier: !speedMode && (shortcutModifiers.metaKey || shortcutModifiers.ctrlKey),
     }) === "queue";
   const alternateAction = alternateComposerDispatchAction(followUpBehavior);
   const isSendDisabled = !canOperateThread || sendDisabledReason !== null;
@@ -432,9 +444,11 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
     submitStatus ??
     (compactsBeforeSend
       ? gt("Summarize {tokens} tokens of history, then send", { tokens: compactTokens })
-      : isRunning && !isEditingQueuedMessage && canSteer
-        ? dispatchTooltip
-        : submitLabel);
+      : speedMode && !isEditingQueuedMessage
+        ? gt("Enter for Standard, {modifierLabel} + Enter for fastest", { modifierLabel: modifier })
+        : isRunning && !isEditingQueuedMessage && canSteer
+          ? dispatchTooltip
+          : submitLabel);
 
   const isBusyOrHeld = isSendBusy || isSendHeld;
   const sendButton = (
@@ -475,6 +489,8 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
         <PlayIcon className="size-4 fill-current" aria-hidden="true" />
       ) : isEditingQueuedMessage ? (
         <CheckIcon className="size-4" aria-hidden="true" />
+      ) : speedIcon && speedModifierHeld ? (
+        <SpeedIcon className="size-4 fill-current" aria-hidden="true" />
       ) : isRunning && isQueuing ? (
         <ListPlusIcon className="size-4" aria-hidden="true" />
       ) : isRunning ? (
@@ -510,41 +526,41 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
 
   return withStopButton(
     <div data-chat-composer-compact-send="true" className="flex items-center gap-2">
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <button
-              type="button"
-              className="flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-(--control-radius) px-2 font-medium text-base text-foreground/80 tabular-nums outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-64 sm:text-sm aria-pressed:bg-accent/60 aria-pressed:text-foreground [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:text-muted-foreground"
-              {...pointerFocusProps}
-              aria-pressed={!keepFullHistory}
-              aria-label={gt("Compact {tokens} tokens of history before sending", {
-                tokens: compactTokens,
-              })}
-              disabled={!canOperateThread}
-              onClick={onToggleKeepFullHistory}
-            />
-          }
-        >
-          <Minimize2Icon aria-hidden="true" />
-          <span className="@max-[480px]/composer-surface:hidden">
-            {keepFullHistory
-              ? gt("Keep", { $context: "keep full history instead of compacting" })
-              : gt("Compact", { $context: "verb, compact history before sending" })}
-          </span>
-          <span className="text-muted-foreground">{compactTokens}</span>
-        </TooltipTrigger>
-        <TooltipPopup>
-          <div>
-            {keepFullHistory
-              ? gt("Next send keeps all {tokens} tokens.", { tokens: compactTokens })
-              : gt("Next send compacts {tokens} tokens first.", { tokens: compactTokens })}
-          </div>
-          <div>
-            {keepFullHistory ? gt("Click to compact first") : gt("Click to keep full history")}
-          </div>
-        </TooltipPopup>
-      </Tooltip>
+      <SharedTooltipTrigger
+        render={
+          <button
+            type="button"
+            className="flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-(--control-radius) px-2 font-medium text-base text-foreground/80 tabular-nums outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-64 sm:text-sm aria-pressed:bg-accent/60 aria-pressed:text-foreground [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:text-muted-foreground"
+            {...pointerFocusProps}
+            aria-pressed={!keepFullHistory}
+            aria-label={gt("Compact {tokens} tokens of history before sending", {
+              tokens: compactTokens,
+            })}
+            disabled={!canOperateThread}
+            onClick={onToggleKeepFullHistory}
+          />
+        }
+        label={
+          <>
+            <div>
+              {keepFullHistory
+                ? gt("Next send keeps all {tokens} tokens.", { tokens: compactTokens })
+                : gt("Next send compacts {tokens} tokens first.", { tokens: compactTokens })}
+            </div>
+            <div>
+              {keepFullHistory ? gt("Click to compact first") : gt("Click to keep full history")}
+            </div>
+          </>
+        }
+      >
+        <Minimize2Icon aria-hidden="true" />
+        <span className="@max-[480px]/composer-surface:hidden">
+          {keepFullHistory
+            ? gt("Keep", { $context: "keep full history instead of compacting" })
+            : gt("Compact", { $context: "verb, compact history before sending" })}
+        </span>
+        <span className="text-muted-foreground">{compactTokens}</span>
+      </SharedTooltipTrigger>
       {children}
       {submit}
     </div>,

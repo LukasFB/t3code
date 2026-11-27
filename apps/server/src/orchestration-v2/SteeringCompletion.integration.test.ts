@@ -1,3 +1,4 @@
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import * as TestClock from "effect/testing/TestClock";
 import {
@@ -34,6 +35,8 @@ import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Queue from "effect/Queue";
 import * as Stream from "effect/Stream";
+import * as ChildProcess from "effect/process/ChildProcess";
+import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import { CodexProviderCapabilitiesV2 } from "./Adapters/CodexAdapterV2.ts";
 import { DispatchModeLimit } from "./DispatchModeLimit.ts";
 import * as EffectWorker from "./EffectWorker.ts";
@@ -822,6 +825,7 @@ it.effect("sends a selected held message once and preserves the remaining queue 
           text,
           attachments: [],
           modelSelection: runSelection,
+          turnSpeed: text === "selected" ? { id: "serviceTier", value: "priority" } : undefined,
           dispatchMode: { type: "queue_after_active" },
           createdBy: "user",
           creationSource: "web",
@@ -874,7 +878,11 @@ it.effect("sends a selected held message once and preserves the remaining queue 
       );
       assert.equal(started[1]?.runId, selected.id);
       assert.equal(started[1]?.message.messageId, selected.userMessageId);
-      assert.deepEqual(started[1]?.modelSelection, runSelection);
+      assert.deepEqual(started[1]?.modelSelection, {
+        ...runSelection,
+        options: [...runSelection.options, { id: "serviceTier", value: "priority" }],
+      });
+      assert.deepEqual(after.thread.modelSelection, runSelection);
       assert.deepEqual(steered, []);
       assert.lengthOf(
         after.messages.filter((message) => message.id === selected.userMessageId),
@@ -3006,6 +3014,101 @@ it.effect("steers a promoted queued message with the selection it was queued wit
   }),
 );
 
+it.effect.each([
+  { label: "steered into the last turn starts from its checkpoint", steered: true },
+  { label: "removed from the queue snapshots the workspace", steered: false },
+])("a turn after a queued message $label", ({ steered }) =>
+  Effect.gen(function* () {
+    const { cwd, events, started, layer, startFirstTurn } = yield* nextTurnSelectionHarness(
+      `baseline-after-queued-${steered}`,
+    );
+    yield* Effect.gen(function* () {
+      const orchestrator = yield* Orchestrator.OrchestratorV2;
+      const worker = yield* EffectWorker.OrchestrationEffectWorkerV2;
+      const threadId = yield* startFirstTurn;
+      const send = (
+        name: string,
+        dispatchMode: { readonly type: "queue_after_active" | "start_immediately" },
+      ) =>
+        orchestrator.dispatch({
+          type: "message.dispatch",
+          commandId: CommandId.make(name),
+          threadId,
+          messageId: MessageId.make(`message:${name}`),
+          text: name,
+          attachments: [],
+          modelSelection: runSelection,
+          dispatchMode,
+          createdBy: "user",
+          creationSource: "web",
+        });
+      yield* send("queued", { type: "queue_after_active" });
+      const queuedRun = (yield* orchestrator.getThreadProjection(threadId)).runs.find(
+        (run) => run.status === "queued",
+      )!;
+      yield* orchestrator.dispatch(
+        steered
+          ? {
+              type: "queued-message.promote-to-steer",
+              commandId: CommandId.make("promote"),
+              threadId,
+              queuedRunId: queuedRun.id,
+              targetRunId: started[0]!.runId,
+            }
+          : {
+              type: "queued-run.cancel",
+              commandId: CommandId.make("remove"),
+              threadId,
+              runId: queuedRun.id,
+            },
+      );
+      yield* worker.drain();
+      const completed = yield* orchestrator.streamDomainEvents.pipe(
+        Stream.filter(
+          (event) =>
+            event.type === "run.updated" &&
+            event.payload.id === started[0]!.runId &&
+            event.payload.status === "completed",
+        ),
+        Stream.take(1),
+        Stream.runDrain,
+        Effect.forkScoped,
+      );
+      const turn = (yield* orchestrator.getThreadProjection(threadId)).providerTurns[0]!;
+      yield* Queue.offer(events, {
+        type: "turn.terminal",
+        driver,
+        providerThreadId: turn.providerThreadId,
+        providerTurnId: turn.id,
+        runOrdinal: started[0]!.runOrdinal,
+        status: "completed",
+        failure: null,
+        threadDisposition: "reusable",
+      });
+      yield* Fiber.join(completed);
+      yield* worker.drain();
+      yield* send("next", { type: "start_immediately" });
+      yield* worker.drain();
+
+      const end = (yield* orchestrator.getThreadProjection(threadId)).checkpoints.find(
+        (checkpoint) => checkpoint.runId === started[0]!.runId,
+      )!;
+      // --verify prints a commit only when the ref resolves to one.
+      const commitOf = (ref: string) =>
+        ChildProcessSpawner.ChildProcessSpawner.use((spawner) =>
+          spawner.string(
+            ChildProcess.make("git", ["rev-parse", "--verify", `${ref}^{commit}`], { cwd }),
+          ),
+        ).pipe(Effect.provide(NodeServices.layer));
+      const baselineRef = `${end.ref.slice(0, end.ref.lastIndexOf("/"))}/${queuedRun.ordinal}`;
+      const [baseline, source] = [yield* commitOf(baselineRef), yield* commitOf(end.ref)];
+      assert.match(baseline, /^[0-9a-f]{40,64}\n$/);
+      assert.match(source, /^[0-9a-f]{40,64}\n$/);
+      assert.strictEqual(baseline === source, steered);
+    }).pipe(Effect.provide(layer));
+  }),
+);
+
 it.effect("steers a promoted scheduled delivery with the thread's current selection", () =>
   Effect.scoped(
     Effect.gen(function* () {
@@ -4492,5 +4595,64 @@ it.effect("a side chat that opens with /goal gets its context on the next questi
       assert.include(question, "- User: first");
       assert.isTrue(question?.endsWith("What is the main thread doing?"));
     }).pipe(Effect.provide(layer));
+  }),
+);
+
+it.effect("an agent's auto send steers past its own explicitly queued message", () =>
+  Effect.gen(function* () {
+    const name = "agent-auto-after-explicit-queue";
+    const { started, steered, layer, startFirstTurn } = yield* nextTurnSelectionHarness(name);
+    yield* Effect.gen(function* () {
+      const orchestrator = yield* Orchestrator.OrchestratorV2;
+      const worker = yield* EffectWorker.OrchestrationEffectWorkerV2;
+      const manager = yield* ThreadManagementService.ThreadManagementService;
+      const threadId = yield* startFirstTurn;
+      const send = (text: string, mode: "auto" | "queue") =>
+        manager.sendToThread({
+          projectId: ProjectId.make(`project:${name}`),
+          threadId,
+          commandId: CommandId.make(text),
+          messageId: MessageId.make(text),
+          text,
+          attachments: [],
+          mode,
+          createdBy: "agent",
+          creationSource: "mcp",
+          senderThreadId: ThreadId.make("thread:sender"),
+        });
+      const later = yield* send("later", "queue");
+      const now = yield* send("now", "auto");
+      yield* worker.drain();
+
+      const projection = yield* orchestrator.getThreadProjection(threadId);
+      assert.deepEqual(
+        {
+          later: later.delivery,
+          now: now.delivery,
+          targetsRunningTurn: now.run.id === started[0]?.runId,
+          adapterReceived: steered.map((text) => text.split("\n").at(-1)),
+          queuedRunIds: projection.runs
+            .filter((run) => run.status === "queued")
+            .map((run) => run.id),
+        },
+        {
+          later: "queued",
+          now: "steered",
+          targetsRunningTurn: true,
+          adapterReceived: ["now"],
+          queuedRunIds: [later.run.id],
+        },
+      );
+    }).pipe(
+      Effect.provide(
+        ThreadManagementService.layer.pipe(
+          Layer.provideMerge(layer),
+          Layer.provide(ServerSettings.layerTest()),
+          Layer.provide(
+            CommandReceiptStore.layer.pipe(Layer.provide(SqlitePersistence.layerMemory)),
+          ),
+        ),
+      ),
+    );
   }),
 );

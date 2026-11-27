@@ -191,6 +191,7 @@ interface StartThreadBootstrap {
 }
 
 export interface StartThreadTurnInput extends ThreadCommandInput {
+  readonly turnSpeed?: import("@t3tools/contracts").TurnSpeedOption | undefined;
   readonly manualContinuationOfRunId?: RunId;
   readonly message: {
     readonly messageId: MessageId;
@@ -838,6 +839,7 @@ export const startThreadTurn = Effect.fn("EnvironmentCommands.startThreadTurn")(
       interactionMode: input.interactionMode,
       workspaceStrategy,
       initialMessage: {
+        turnSpeed: input.turnSpeed,
         messageId: input.message.messageId,
         text: input.message.text,
         ...(context ? { context } : {}),
@@ -875,6 +877,7 @@ export const startThreadTurn = Effect.fn("EnvironmentCommands.startThreadTurn")(
         ...(input.sourceProposedPlan === undefined
           ? {}
           : { sourcePlanRef: input.sourceProposedPlan }),
+        turnSpeed: input.turnSpeed,
         ...(input.freshContext ? { freshContext: true } : {}),
         dispatchMode: { type: "start_immediately" },
       },
@@ -905,6 +908,7 @@ export const startThreadTurn = Effect.fn("EnvironmentCommands.startThreadTurn")(
       ...(input.sourceProposedPlan === undefined
         ? {}
         : { sourcePlanRef: input.sourceProposedPlan }),
+      turnSpeed: input.turnSpeed,
       ...(input.freshContext ? { freshContext: true } : {}),
       ...(requestedMode !== "queue" ? { deliveryIntent: requestedMode } : {}),
       dispatchMode,

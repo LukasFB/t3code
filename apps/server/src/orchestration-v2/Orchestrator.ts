@@ -96,6 +96,7 @@ import {
 import { isPlaceholderThreadTitle } from "./placeholderThreadTitle.ts";
 import { combinePullRequestWatchWakes, type PullRequestWatchWake } from "./pullRequestWatch.ts";
 import { outputRequestProblem } from "./runOutput.ts";
+import * as WorktreeSetupTracker from "../project/WorktreeSetupTracker.ts";
 import { recordThreadOpen } from "@t3tools/shared/paletteSearch";
 import { isSlashCommand } from "@t3tools/shared/composerTrigger";
 import {
@@ -1073,6 +1074,17 @@ function followsCurrentConversation(
   );
 }
 
+function withTurnSpeed(
+  selection: ModelSelection,
+  speed: OrchestrationV2Run["queuedTurnSpeed"],
+): ModelSelection {
+  if (!speed) return selection;
+  return {
+    ...selection,
+    options: [...(selection.options ?? []).filter((option) => option.id !== speed.id), speed],
+  };
+}
+
 function queuedRunModelSelection(
   projection: Pick<OrchestrationV2ThreadProjection, "thread" | "messages">,
   run: OrchestrationV2Run,
@@ -1661,6 +1673,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
   const idAllocator = yield* IdAllocator.IdAllocatorV2;
   const projects = yield* ProjectStore.ProjectStoreV2;
   const taskFolderStore = yield* TaskFolderStore.TaskFolderStore;
+  const worktreeSetupTracker = yield* WorktreeSetupTracker.WorktreeSetupTracker;
   const projectionStore = yield* ProjectionStoreV2;
   const effectOutbox = yield* EffectOutbox.EffectOutboxV2;
   const nextTurnItemOrdinal = (
@@ -3130,6 +3143,8 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           : "automatic-queue";
       const startingRun: OrchestrationV2Run = {
         ...queuedRun,
+        queuedTurnSpeed: undefined,
+        modelSelection: withTurnSpeed(queuedRun.modelSelection, queuedRun.queuedTurnSpeed),
         providerThreadId: queuedProviderThread.id,
         ordinal,
         status: "starting",
@@ -6142,15 +6157,22 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         cause: `Thread ${command.sourceThreadId} was deleted.`,
       });
     }
-    // The fork would copy no worktree path and run in the project checkout.
     if (
       command.sideChat === true &&
-      orchestrationV2WorktreePending(sourceProjection.thread.worktreePath, sourceProjection.runs)
+      (orchestrationV2WorktreePending(
+        sourceProjection.thread.worktreePath,
+        sourceProjection.runs,
+      ) ||
+        (yield* worktreeSetupTracker.workspaceIsHeld(command.sourceThreadId)))
     ) {
+      const workspaceStatus =
+        sourceProjection.thread.worktreePath === null
+          ? "has no worktree yet"
+          : "is still preparing its worktree";
       return yield* new OrchestratorDispatchError({
         commandId: command.commandId,
         commandType: command.type,
-        cause: `Thread ${command.sourceThreadId} has no worktree yet. Start the side chat once its worktree is set up.`,
+        cause: `Thread ${command.sourceThreadId} ${workspaceStatus}. Start the side chat once its worktree is set up.`,
       });
     }
     if ((yield* findThread(command.targetThreadId)) !== null) {
@@ -6470,6 +6492,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       | "turnItems"
     >;
     readonly modelSelection: ModelSelection;
+    readonly threadSelection?: ModelSelection;
     readonly targetRunId: OrchestrationV2Run["id"];
     readonly messageId: OrchestrationV2ConversationMessage["id"];
     readonly text: string;
@@ -6742,7 +6765,10 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       if (
         steerCarriesSelection &&
         (instanceChanged ||
-          !modelSelectionsEqual(input.projection.thread.modelSelection, input.modelSelection))
+          !modelSelectionsEqual(
+            input.projection.thread.modelSelection,
+            input.threadSelection ?? input.modelSelection,
+          ))
       ) {
         yield* emitEvent({
           type: instanceChanged ? "thread.provider-switched" : "thread.model-selection-updated",
@@ -6752,7 +6778,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           payload: {
             ...input.projection.thread,
             providerInstanceId: input.modelSelection.instanceId,
-            modelSelection: input.modelSelection,
+            modelSelection: input.threadSelection ?? input.modelSelection,
             updatedAt: now,
           },
         });
@@ -7090,7 +7116,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         payload: {
           ...input.projection.thread,
           providerInstanceId: input.modelSelection.instanceId,
-          modelSelection: input.modelSelection,
+          modelSelection: input.threadSelection ?? input.modelSelection,
           updatedAt: now,
         },
       });
@@ -7535,10 +7561,12 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       });
       projection = applyToProjection(projection, event);
     }
-    // Background wakes and delegated completions continue work the user already snoozed, so
-    // only a message someone actually sent ends the snooze.
+    // Background wakes, delegated completions and scheduled-task runs continue work the user
+    // already snoozed, so only a message someone actually sent ends the snooze.
     const automaticWake =
-      command.notification !== undefined || command.delegatedCompletion !== undefined;
+      command.notification !== undefined ||
+      command.delegatedCompletion !== undefined ||
+      command.scheduledTaskId !== undefined;
     if (projection.thread.snoozedUntil != null && !automaticWake) {
       const now = yield* DateTime.now;
       const thread: OrchestrationV2AppThread = {
@@ -7667,14 +7695,15 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       dispatchMode = { type: "queue_after_active" };
     }
     // An agent's automatic send must not overtake its own earlier message still queued
-    // (e.g. behind /compact), or the agent receives them out of send order.
+    // (e.g. behind /compact), or the agent receives them out of send order. A message it
+    // explicitly queued as a later turn is no such barrier.
     if (
       command.deliveryIntent === "auto" &&
       command.createdBy === "agent" &&
       (dispatchMode.type === "steer_active" || dispatchMode.type === "restart_active")
     ) {
       const queuedRuns = projection.runs.filter(
-        (run) => run.status === "queued" && run.queueHeld !== true,
+        (run) => run.status === "queued" && run.queueHeld !== true && run.explicitQueue !== true,
       );
       if (queuedRuns.length > 0) {
         const queuedMessages = yield* projectionStore
@@ -8031,9 +8060,10 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         projection,
         modelSelection:
           delegatedCompletion === undefined && notification === undefined
-            ? modelSelection
+            ? withTurnSpeed(modelSelection, command.turnSpeed)
             : (projection.runs.find((run) => run.id === dispatchMode.targetRunId)?.modelSelection ??
               modelSelection),
+        ...(command.turnSpeed ? { threadSelection: modelSelection } : {}),
         delegatedCompletion,
         ...(notification === undefined ? {} : { notification }),
         targetRunId: dispatchMode.targetRunId,
@@ -8276,11 +8306,13 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         ordinal,
         providerInstanceId: modelSelection.instanceId,
         modelSelection,
+        queuedTurnSpeed: command.turnSpeed,
         providerThreadId: queuedProviderThread.id,
         userMessageId: command.messageId,
         rootNodeId,
         activeAttemptId: attemptId,
         status: "queued",
+        ...(command.explicitQueue === true ? { explicitQueue: true as const } : {}),
         ...(steerWhenReadyRunId === undefined ? {} : { steerWhenReadyRunId }),
         // A restart cancels its run; nobody knows whether the provider read the steer, so a person decides.
         ...(worktreeMissingRun !== undefined ||
@@ -8717,7 +8749,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         threadId: command.threadId,
         ordinal,
         providerInstanceId: modelSelection.instanceId,
-        modelSelection,
+        modelSelection: withTurnSpeed(modelSelection, command.turnSpeed),
         providerThreadId,
         userMessageId: command.messageId,
         rootNodeId,
@@ -10494,6 +10526,32 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       result: null,
     };
     const emitEvent = emit(events, command);
+    // Stop disposed the results owed at the time; a follow-up started after it is owed a wake again.
+    // Re-read the owner so a terminal update since `parent` was read is kept.
+    const currentOwner =
+      owner.delegatedCompletion?.disposition === "stopped"
+        ? (yield* projectionStore
+            .getThreadRecords(parentThreadId, ["runs"], { runIds: [owner.id] })
+            .pipe(mapDispatchError(command))).runs[0]
+        : undefined;
+    if (currentOwner?.delegatedCompletion?.disposition === "stopped") {
+      yield* emitEvent({
+        type: "run.updated",
+        threadId: parentThreadId,
+        runId: currentOwner.id,
+        nodeId: owner.rootNodeId,
+        providerInstanceId: currentOwner.providerInstanceId,
+        occurredAt: now,
+        payload: {
+          ...currentOwner,
+          delegatedCompletion: {
+            ...currentOwner.delegatedCompletion,
+            disposition: "open",
+            reopenedAfterStop: true,
+          },
+        },
+      });
+    }
     yield* emitEvent({
       type: "run.updated",
       threadId: child.id,
@@ -12334,7 +12392,8 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       events,
       effects,
       projection,
-      modelSelection,
+      modelSelection: withTurnSpeed(modelSelection, queuedRun.queuedTurnSpeed),
+      threadSelection: modelSelection,
       targetRunId: command.targetRunId,
       messageId: queuedMessage.id,
       text: queuedMessage.text,
@@ -12636,7 +12695,14 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
     let updatedRun =
       command.modelSelection === undefined
         ? queuedRun
-        : { ...queuedRun, modelSelection, providerInstanceId: modelSelection.instanceId };
+        : {
+            ...queuedRun,
+            modelSelection,
+            providerInstanceId: modelSelection.instanceId,
+            queuedTurnSpeed: modelSelectionsEqual(modelSelection, queuedRun.modelSelection)
+              ? queuedRun.queuedTurnSpeed
+              : undefined,
+          };
     if (
       updatedRun.steerWhenReadyRunId !== undefined &&
       (isSlashCommand({
@@ -15237,6 +15303,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       }),
     );
     const nextCohort = {
+      ...cohort,
       disposition: "open" as const,
       nextGeneration: generation + 1,
       delivery: {
@@ -17681,5 +17748,6 @@ export const layer: Layer.Layer<
   | TaskFolderStore.TaskFolderStore
   | ThreadForkServiceV2
 > = Layer.effect(OrchestratorV2, makeOrchestrator()).pipe(
-  Layer.provide(ThreadCommandExecutor.layer),
+  // Layers memoize by reference, so this is the tracker ThreadLaunchService holds workspaces in.
+  Layer.provide(Layer.merge(ThreadCommandExecutor.layer, WorktreeSetupTracker.layer)),
 );
