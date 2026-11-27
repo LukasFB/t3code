@@ -14,6 +14,7 @@ import {
   PlayIcon,
   CornerUpRightIcon,
   ListPlusIcon,
+  ZapIcon,
 } from "lucide-react";
 import { useEnvironmentIdentificationMode } from "~/hooks/useSettings";
 import type { MessageResolver } from "~/i18n/messages";
@@ -22,6 +23,7 @@ import { cn, isMacPlatform } from "~/lib/utils";
 import { useShortcutModifierState } from "../../shortcutModifierState";
 import { StageBackdropButtonArt, useSidebarStageBackdropVariant } from "../SidebarStageBackdrop";
 import { Button } from "../ui/button";
+import { UltrafastIcon } from "../Icons";
 import { Spinner } from "../ui/spinner";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { SharedTooltipTrigger } from "../ui/shared-tooltip";
@@ -49,6 +51,7 @@ interface ComposerPrimaryActionsProps {
   runId?: string | null;
   followUpBehavior?: "queue" | "steer";
   canSteer?: boolean;
+  speedIcon?: "fast" | "ultrafast" | undefined;
   speedMode?: boolean;
   alternateShortcutLabel?: string | null;
   /** Dictation is running; Send finishes it and submits once the transcript lands. */
@@ -243,6 +246,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   runId = null,
   followUpBehavior = "steer",
   canSteer = true,
+  speedIcon,
   speedMode = false,
   alternateShortcutLabel = null,
   voiceInputActive = false,
@@ -272,6 +276,13 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
     : undefined;
   const environmentIdentificationMode = useEnvironmentIdentificationMode();
   const shortcutModifiers = useShortcutModifierState();
+  const speedModifierHeld =
+    (isMacPlatform(navigator.platform)
+      ? shortcutModifiers.metaKey && !shortcutModifiers.ctrlKey
+      : shortcutModifiers.ctrlKey && !shortcutModifiers.metaKey) &&
+    !shortcutModifiers.altKey &&
+    !shortcutModifiers.shiftKey;
+  const SpeedIcon = speedIcon === "ultrafast" ? UltrafastIcon : ZapIcon;
   const isQueuing =
     !isEditingQueuedMessage &&
     resolveComposerDispatchMode({
@@ -478,6 +489,8 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
         <PlayIcon className="size-4 fill-current" aria-hidden="true" />
       ) : isEditingQueuedMessage ? (
         <CheckIcon className="size-4" aria-hidden="true" />
+      ) : speedIcon && speedModifierHeld ? (
+        <SpeedIcon className="size-4 fill-current" aria-hidden="true" />
       ) : isRunning && isQueuing ? (
         <ListPlusIcon className="size-4" aria-hidden="true" />
       ) : isRunning ? (

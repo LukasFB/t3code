@@ -230,7 +230,11 @@ import { ComposerFooterPrimaryActions } from "./ComposerFooterControls";
 import { ComposerPendingUserInputPanel } from "./ComposerPendingUserInputPanel";
 import { resolveComposerMenuActiveItemId } from "./composerMenuHighlight";
 import { buildPullRequestReferenceContext } from "../pullRequest/pullRequestDetail.logic";
-import { getComposerPromptInjectionState, getComposerReasoningStep } from "./composerProviderState";
+import {
+  composerFastestSpeed,
+  getComposerPromptInjectionState,
+  getComposerReasoningStep,
+} from "./composerProviderState";
 import { readPromptUltrathink } from "./TraitsPicker";
 import { useApplyThreadModelPick } from "./useApplyThreadModelPick";
 import {
@@ -4114,6 +4118,15 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     runId={activeThread?.runtime?.activeRunId ?? null}
                     followUpBehavior={followUpBehavior}
                     canSteer={canSteer}
+                    speedIcon={
+                      settings.sendShortcut === "enter-speed"
+                        ? composerFastestSpeed(
+                            selectedProvider,
+                            selectedModel,
+                            selectedProviderModels,
+                          )?.icon
+                        : undefined
+                    }
                     speedMode={settings.sendShortcut === "enter-speed"}
                     alternateShortcutLabel={shortcutLabelForCommand(
                       keybindings,

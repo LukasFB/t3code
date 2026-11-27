@@ -59,27 +59,47 @@ type ComposerTraitsTarget = {
   includePlanAgent?: boolean | undefined;
 };
 
+export function composerFastestSpeed(
+  provider: ProviderDriverKind,
+  model: string,
+  models: ReadonlyArray<ServerProviderModel>,
+) {
+  const { optionDescriptors } = getProviderModelCapabilities(models, model, provider);
+  for (const descriptor of optionDescriptors ?? []) {
+    if (descriptor.id === "fastMode" && descriptor.type === "boolean") {
+      return { icon: "fast", option: { id: "fastMode", value: true } } as const;
+    }
+    if (descriptor.id === "serviceTier" && descriptor.type === "select") {
+      for (const label of ["Ultrafast", "Fast"] as const) {
+        const tier = descriptor.options.find((option) => option.label === label);
+        if (tier)
+          return {
+            icon: label === "Ultrafast" ? "ultrafast" : "fast",
+            option: { id: "serviceTier", value: tier.id },
+          } as const;
+      }
+    }
+  }
+}
+
 export function composerTurnSpeed(
   provider: ProviderDriverKind,
   model: string,
   models: ReadonlyArray<ServerProviderModel>,
   intent: import("../../composer-logic").ComposerSubmissionIntent | undefined,
 ): import("@t3tools/contracts").TurnSpeedOption | undefined {
-  if (intent !== "standard" && intent !== "fastest") return;
+  if (intent === "fastest") return composerFastestSpeed(provider, model, models)?.option;
+  if (intent !== "standard") return;
   const { optionDescriptors } = getProviderModelCapabilities(models, model, provider);
   for (const descriptor of optionDescriptors ?? []) {
     if (descriptor.id === "serviceTier" && descriptor.type === "select") {
-      const choice =
-        intent === "standard"
-          ? descriptor.options.find(
-              (option) => option.id === "default" || option.label === "Standard",
-            )
-          : (descriptor.options.find((option) => option.label === "Ultrafast") ??
-            descriptor.options.find((option) => option.label === "Fast"));
+      const choice = descriptor.options.find(
+        (option) => option.id === "default" || option.label === "Standard",
+      );
       if (choice) return { id: "serviceTier", value: choice.id };
     }
     if (descriptor.id === "fastMode" && descriptor.type === "boolean")
-      return { id: "fastMode", value: intent === "fastest" };
+      return { id: "fastMode", value: false };
   }
 }
 
