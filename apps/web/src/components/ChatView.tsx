@@ -6,7 +6,6 @@ import { useDesktopPreferences } from "../desktopPreferences";
 import type { OpenPreviewMutation } from "../browser/openFileInPreview";
 import { m } from "../i18n/messages";
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
-import { useGT, useMessages } from "gt-react";
 import { ChildThreadApprovals } from "./chat/ChildThreadApprovals";
 import {
   draftRuntimeModeLimitsInstance,
