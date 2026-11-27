@@ -61,6 +61,7 @@ const testState = vi.hoisted(() => {
   };
 
   return {
+    sidebarProjectScopeKeys: [] as string[],
     completeProjectFileRead: (value: ProjectFile) => completeProjectFileRead(value),
     discoverBranch(branch: string) {
       draftSession = { ...draftSession, branch };
@@ -97,6 +98,7 @@ const testState = vi.hoisted(() => {
         startFromOrigin: false,
       },
     ) {
+      testState.sidebarProjectScopeKeys = [];
       storedDraft = nextStoredDraft;
       openDraftRoute = null;
       draftSession = {
@@ -227,6 +229,18 @@ vi.mock("@t3tools/client-runtime/state/project-grouping", () => ({
   getProjectOrderKey: () => "remote-project",
   selectProjectGroupingSettings: () => ({}),
 }));
+vi.mock("../sidebarProjectGrouping", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../sidebarProjectGrouping")>()),
+  buildSidebarProjectSnapshots: () =>
+    ["first", "second", "remote-project"].map((projectKey) => ({
+      projectKey,
+      archived: false,
+      memberProjectRefs:
+        projectKey === "remote-project"
+          ? [{ environmentId: "environment-ssh", projectId: "project-remote" }]
+          : [],
+    })),
+}));
 vi.mock("../state/entities", () => {
   const project = {
     id: "project-remote",
@@ -257,7 +271,14 @@ vi.mock("../threadRoutes", () => ({
 }));
 vi.mock("../uiStateStore", () => ({
   legacyProjectCwdPreferenceKey: () => "remote-project",
-  useUiStateStore: () => [],
+  useUiStateStore: {
+    getState: () => ({
+      sidebarProjectScopeKeys: testState.sidebarProjectScopeKeys,
+      setSidebarProjectScopeKeys: (keys: string[]) => {
+        testState.sidebarProjectScopeKeys = keys;
+      },
+    }),
+  },
 }));
 vi.mock("./useSettings", () => ({ getClientSettings: () => ({}) }));
 
@@ -279,6 +300,21 @@ describe.each([
     },
   ],
 ])("useNewThreadHandler with a %s draft", (_, draft) => {
+  it.each([
+    { selected: ["first", "second"], expected: ["first", "second", "remote-project"] },
+    { selected: ["remote-project", "first"], expected: ["remote-project", "first"] },
+    { selected: [], expected: [] },
+    { selected: ["removed"], expected: ["removed"] },
+  ])("opens a draft with project filter $selected", async ({ selected, expected }) => {
+    testState.reset(draft);
+    testState.sidebarProjectScopeKeys = selected;
+    await useNewThreadHandler()({
+      environmentId: "environment-ssh",
+      projectId: "project-remote",
+    } as never);
+    expect(testState.sidebarProjectScopeKeys).toEqual(expected);
+  });
+
   it("opens the draft before the project file is read, then applies its workspace default", async () => {
     testState.reset(draft, { envMode: null, startFromOrigin: false });
     const opened = await useNewThreadHandler()({

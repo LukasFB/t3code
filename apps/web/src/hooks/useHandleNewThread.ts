@@ -21,6 +21,10 @@ import {
   useComposerDraftStore,
 } from "../composerDraftStore";
 import { newDraftId, newThreadId } from "../lib/utils";
+import {
+  buildSidebarProjectSnapshots,
+  resolveSidebarProjectScopeKeys,
+} from "../sidebarProjectGrouping";
 import { orderItemsByPreferredIds } from "../components/Sidebar.logic";
 import {
   deriveLogicalProjectKeyFromSettings,
@@ -310,6 +314,34 @@ export function createNewThreadHandler(router: AnyRouter) {
     const logicalProjectKey = project
       ? deriveLogicalProjectKeyFromSettings(project, projectGroupingSettings)
       : scopedProjectKey(projectRef);
+    const { sidebarProjectScopeKeys, setSidebarProjectScopeKeys } = useUiStateStore.getState();
+    if (sidebarProjectScopeKeys.length > 0 && project) {
+      const groups = buildSidebarProjectSnapshots({
+        primaryEnvironmentId: null,
+        resolveEnvironmentLabel: () => null,
+        projects,
+        settings: projectGroupingSettings,
+        groupScratchProjects: true,
+      });
+      const targetGroup = groups.find(
+        (group) =>
+          !group.archived &&
+          group.memberProjectRefs.some(
+            (ref) =>
+              ref.environmentId === projectRef.environmentId &&
+              ref.projectId === projectRef.projectId,
+          ),
+      );
+      const activeKeys = resolveSidebarProjectScopeKeys({
+        groups: groups.filter((group) => !group.archived),
+        keys: sidebarProjectScopeKeys,
+        settings: projectGroupingSettings,
+        canClearMissingScope: true,
+      });
+      if (targetGroup && activeKeys.length > 0 && !activeKeys.includes(targetGroup.projectKey)) {
+        setSidebarProjectScopeKeys([...sidebarProjectScopeKeys, targetGroup.projectKey]);
+      }
+    }
     const hasBranchOption = options?.branch !== undefined;
     const hasWorktreePathOption = options?.worktreePath !== undefined;
     const hasEnvModeOption = options?.envMode !== undefined;
