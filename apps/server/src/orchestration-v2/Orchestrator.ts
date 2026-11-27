@@ -1074,6 +1074,17 @@ function followsCurrentConversation(
   );
 }
 
+function withTurnSpeed(
+  selection: ModelSelection,
+  speed: OrchestrationV2Run["queuedTurnSpeed"],
+): ModelSelection {
+  if (!speed) return selection;
+  return {
+    ...selection,
+    options: [...(selection.options ?? []).filter((option) => option.id !== speed.id), speed],
+  };
+}
+
 function queuedRunModelSelection(
   projection: Pick<OrchestrationV2ThreadProjection, "thread" | "messages">,
   run: OrchestrationV2Run,
@@ -3132,6 +3143,8 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           : "automatic-queue";
       const startingRun: OrchestrationV2Run = {
         ...queuedRun,
+        queuedTurnSpeed: undefined,
+        modelSelection: withTurnSpeed(queuedRun.modelSelection, queuedRun.queuedTurnSpeed),
         providerThreadId: queuedProviderThread.id,
         ordinal,
         status: "starting",
@@ -6479,6 +6492,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       | "turnItems"
     >;
     readonly modelSelection: ModelSelection;
+    readonly threadSelection?: ModelSelection;
     readonly targetRunId: OrchestrationV2Run["id"];
     readonly messageId: OrchestrationV2ConversationMessage["id"];
     readonly text: string;
@@ -6751,7 +6765,10 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       if (
         steerCarriesSelection &&
         (instanceChanged ||
-          !modelSelectionsEqual(input.projection.thread.modelSelection, input.modelSelection))
+          !modelSelectionsEqual(
+            input.projection.thread.modelSelection,
+            input.threadSelection ?? input.modelSelection,
+          ))
       ) {
         yield* emitEvent({
           type: instanceChanged ? "thread.provider-switched" : "thread.model-selection-updated",
@@ -6761,7 +6778,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           payload: {
             ...input.projection.thread,
             providerInstanceId: input.modelSelection.instanceId,
-            modelSelection: input.modelSelection,
+            modelSelection: input.threadSelection ?? input.modelSelection,
             updatedAt: now,
           },
         });
@@ -7099,7 +7116,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         payload: {
           ...input.projection.thread,
           providerInstanceId: input.modelSelection.instanceId,
-          modelSelection: input.modelSelection,
+          modelSelection: input.threadSelection ?? input.modelSelection,
           updatedAt: now,
         },
       });
@@ -8043,9 +8060,10 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         projection,
         modelSelection:
           delegatedCompletion === undefined && notification === undefined
-            ? modelSelection
+            ? withTurnSpeed(modelSelection, command.turnSpeed)
             : (projection.runs.find((run) => run.id === dispatchMode.targetRunId)?.modelSelection ??
               modelSelection),
+        ...(command.turnSpeed ? { threadSelection: modelSelection } : {}),
         delegatedCompletion,
         ...(notification === undefined ? {} : { notification }),
         targetRunId: dispatchMode.targetRunId,
@@ -8288,6 +8306,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         ordinal,
         providerInstanceId: modelSelection.instanceId,
         modelSelection,
+        queuedTurnSpeed: command.turnSpeed,
         providerThreadId: queuedProviderThread.id,
         userMessageId: command.messageId,
         rootNodeId,
@@ -8730,7 +8749,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         threadId: command.threadId,
         ordinal,
         providerInstanceId: modelSelection.instanceId,
-        modelSelection,
+        modelSelection: withTurnSpeed(modelSelection, command.turnSpeed),
         providerThreadId,
         userMessageId: command.messageId,
         rootNodeId,
@@ -12373,7 +12392,8 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       events,
       effects,
       projection,
-      modelSelection,
+      modelSelection: withTurnSpeed(modelSelection, queuedRun.queuedTurnSpeed),
+      threadSelection: modelSelection,
       targetRunId: command.targetRunId,
       messageId: queuedMessage.id,
       text: queuedMessage.text,
@@ -12675,7 +12695,14 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
     let updatedRun =
       command.modelSelection === undefined
         ? queuedRun
-        : { ...queuedRun, modelSelection, providerInstanceId: modelSelection.instanceId };
+        : {
+            ...queuedRun,
+            modelSelection,
+            providerInstanceId: modelSelection.instanceId,
+            queuedTurnSpeed: modelSelectionsEqual(modelSelection, queuedRun.modelSelection)
+              ? queuedRun.queuedTurnSpeed
+              : undefined,
+          };
     if (
       updatedRun.steerWhenReadyRunId !== undefined &&
       (isSlashCommand({

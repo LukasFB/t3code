@@ -825,6 +825,7 @@ it.effect("sends a selected held message once and preserves the remaining queue 
           text,
           attachments: [],
           modelSelection: runSelection,
+          turnSpeed: text === "selected" ? { id: "serviceTier", value: "priority" } : undefined,
           dispatchMode: { type: "queue_after_active" },
           createdBy: "user",
           creationSource: "web",
@@ -877,7 +878,11 @@ it.effect("sends a selected held message once and preserves the remaining queue 
       );
       assert.equal(started[1]?.runId, selected.id);
       assert.equal(started[1]?.message.messageId, selected.userMessageId);
-      assert.deepEqual(started[1]?.modelSelection, runSelection);
+      assert.deepEqual(started[1]?.modelSelection, {
+        ...runSelection,
+        options: [...runSelection.options, { id: "serviceTier", value: "priority" }],
+      });
+      assert.deepEqual(after.thread.modelSelection, runSelection);
       assert.deepEqual(steered, []);
       assert.lengthOf(
         after.messages.filter((message) => message.id === selected.userMessageId),

@@ -23,6 +23,8 @@ To free a default shortcut, choose **Unassign** from its row menu (**Reset to de
 
 Configure whether `Enter` sends or requires `mod+Enter` in **Settings → Chat → Send shortcut** (`Shift+Enter` always inserts a newline).
 
+The speed option under **Send shortcut** uses Enter for Standard and Cmd/Ctrl+Enter for the fastest speed the model offers (Ultrafast, then Fast). It applies to one submission. Both shortcuts use the configured follow-up behavior during a run.
+
 In the model picker, use `Left`/`Shift+Tab` to move to the provider list, `Right` to return to search or move into effort levels, and `Up`/`Down`/`Enter` to select.
 
 ## Copy pull request and thread references

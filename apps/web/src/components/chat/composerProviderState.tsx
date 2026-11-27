@@ -59,6 +59,30 @@ type ComposerTraitsTarget = {
   includePlanAgent?: boolean | undefined;
 };
 
+export function composerTurnSpeed(
+  provider: ProviderDriverKind,
+  model: string,
+  models: ReadonlyArray<ServerProviderModel>,
+  intent: import("../../composer-logic").ComposerSubmissionIntent | undefined,
+): import("@t3tools/contracts").TurnSpeedOption | undefined {
+  if (intent !== "standard" && intent !== "fastest") return;
+  const { optionDescriptors } = getProviderModelCapabilities(models, model, provider);
+  for (const descriptor of optionDescriptors ?? []) {
+    if (descriptor.id === "serviceTier" && descriptor.type === "select") {
+      const choice =
+        intent === "standard"
+          ? descriptor.options.find(
+              (option) => option.id === "default" || option.label === "Standard",
+            )
+          : (descriptor.options.find((option) => option.label === "Ultrafast") ??
+            descriptor.options.find((option) => option.label === "Fast"));
+      if (choice) return { id: "serviceTier", value: choice.id };
+    }
+    if (descriptor.id === "fastMode" && descriptor.type === "boolean")
+      return { id: "fastMode", value: intent === "fastest" };
+  }
+}
+
 export function getComposerPromptInjectionState(prompt: string): ComposerPromptInjectionState {
   return isClaudeUltrathinkPrompt(prompt) ? "ultrathink" : "none";
 }

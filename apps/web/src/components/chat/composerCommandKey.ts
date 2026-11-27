@@ -249,7 +249,9 @@ export function composerCommandKeyHandler(input: {
     if (
       menuIsActive &&
       !event.shiftKey &&
-      (submissionIntent === null || submissionIntent === "foreground")
+      (submissionIntent === null ||
+        submissionIntent === "foreground" ||
+        submissionIntent === "standard")
     ) {
       const currentItems = composerMenuItemsRef.current;
       const selectedItem = activeComposerMenuItemRef.current ?? currentItems[0];

@@ -1237,6 +1237,10 @@ export function ChatSettingsPanel() {
   const sendShortcutOptions = [
     { value: "enter", label: "Enter" },
     {
+      value: "enter-speed",
+      label: gt("Enter for Standard, {modifierLabel} + Enter for fastest", { modifierLabel }),
+    },
+    {
       value: "mod-enter-multiline",
       label: gt("{modifierLabel} + Enter for multiline prompts", { modifierLabel }),
     },
@@ -1355,20 +1359,22 @@ export function ChatSettingsPanel() {
         <SettingsRow
           {...setting("follow-up-behavior")}
           description={
-            settings.sendShortcut === "mod-enter-multiline"
-              ? gt(
-                  "Queue follow-ups while the agent runs or steer the current run. Press {modifier} + Enter for single-line prompts or {modifier} + Shift + Enter for multiline prompts to do the opposite for one message.",
-                  { modifier: modifierLabel },
-                )
-              : settings.sendShortcut === "mod-enter"
+            settings.sendShortcut === "enter-speed"
+              ? gt("Choose how to deliver follow-ups while a turn is running.")
+              : settings.sendShortcut === "mod-enter-multiline"
                 ? gt(
-                    "Queue follow-ups while the agent runs or steer the current run. Press {modifier} + Shift + Enter to do the opposite for one message.",
+                    "Queue follow-ups while the agent runs or steer the current run. Press {modifier} + Enter for single-line prompts or {modifier} + Shift + Enter for multiline prompts to do the opposite for one message.",
                     { modifier: modifierLabel },
                   )
-                : gt(
-                    "Queue follow-ups while the agent runs or steer the current run. Press {modifier} + Enter to do the opposite for one message.",
-                    { modifier: modifierLabel },
-                  )
+                : settings.sendShortcut === "mod-enter"
+                  ? gt(
+                      "Queue follow-ups while the agent runs or steer the current run. Press {modifier} + Shift + Enter to do the opposite for one message.",
+                      { modifier: modifierLabel },
+                    )
+                  : gt(
+                      "Queue follow-ups while the agent runs or steer the current run. Press {modifier} + Enter to do the opposite for one message.",
+                      { modifier: modifierLabel },
+                    )
           }
           resetAction={
             settings.followUpBehavior !== DEFAULT_UNIFIED_SETTINGS.followUpBehavior ? (

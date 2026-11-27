@@ -274,7 +274,9 @@ export function shouldDockDraftHeroForSubmission(input: {
   submissionIntent: ComposerSubmissionIntent;
 }): boolean {
   return (
-    input.submissionIntent === "foreground" &&
+    (input.submissionIntent === "foreground" ||
+      input.submissionIntent === "standard" ||
+      input.submissionIntent === "fastest") &&
     input.isDraftHeroState &&
     input.activeThreadKey !== null
   );

@@ -533,7 +533,7 @@ export const ClientSettingsSchema = Schema.Struct({
   pullRequestLinksOpenInApp: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
 
   composerRichTextEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
-  sendShortcut: Schema.Literals(["enter", "mod-enter-multiline", "mod-enter"]).pipe(
+  sendShortcut: Schema.Literals(["enter", "mod-enter-multiline", "mod-enter", "enter-speed"]).pipe(
     Schema.withDecodingDefault(Effect.succeed("enter")),
   ),
   followUpBehavior: Schema.Literals(["queue", "steer"]).pipe(
@@ -2171,7 +2171,9 @@ export const ClientSettingsPatch = Schema.Struct({
   ),
   pullRequestLinksOpenInApp: Schema.optionalKey(Schema.Boolean),
   composerRichTextEnabled: Schema.optionalKey(Schema.Boolean),
-  sendShortcut: Schema.optionalKey(Schema.Literals(["enter", "mod-enter-multiline", "mod-enter"])),
+  sendShortcut: Schema.optionalKey(
+    Schema.Literals(["enter", "mod-enter-multiline", "mod-enter", "enter-speed"]),
+  ),
   followUpBehavior: Schema.optionalKey(Schema.Literals(["queue", "steer"])),
   sideThreadOpenTarget: Schema.optionalKey(SideThreadOpenTarget),
   proactivePanelsEnabled: Schema.optionalKey(Schema.Boolean),

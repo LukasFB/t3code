@@ -106,6 +106,8 @@ describe("composerSubmissionIntentForKey", () => {
   const enter = { key: "Enter", metaKey: false, ctrlKey: false, altKey: false, shiftKey: false };
 
   it.each([
+    ["enter-speed", "one line", false, "standard"],
+    ["enter-speed", "one line", true, "fastest"],
     ["enter", "one line", false, "foreground"],
     ["enter", "two\nlines", false, "foreground"],
     ["mod-enter-multiline", "one line", false, "foreground"],

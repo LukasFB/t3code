@@ -2486,7 +2486,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   const handleSubmitMessage = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     const running = phase === "running" || phase === "connecting";
-    const alternateModifier = event.metaKey || event.ctrlKey;
+    const modified = event.metaKey || event.ctrlKey;
+    const speedMode = settings.sendShortcut === "enter-speed";
+    const alternateModifier = !speedMode && modified;
     submitComposer(
       event,
       resolveComposerDispatchMode({
@@ -2495,7 +2497,13 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         activeTurnDefault: followUpBehavior,
         canSteer,
       }),
-      running && alternateModifier ? "alternate" : undefined,
+      speedMode
+        ? modified
+          ? "fastest"
+          : "standard"
+        : running && alternateModifier
+          ? "alternate"
+          : undefined,
     );
   };
   const handleSubmitMessageStable = useStableCallback(handleSubmitMessage);
@@ -4106,6 +4114,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     runId={activeThread?.runtime?.activeRunId ?? null}
                     followUpBehavior={followUpBehavior}
                     canSteer={canSteer}
+                    speedMode={settings.sendShortcut === "enter-speed"}
                     alternateShortcutLabel={shortcutLabelForCommand(
                       keybindings,
                       "composer.sendAlternate",

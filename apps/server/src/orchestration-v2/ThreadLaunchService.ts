@@ -91,6 +91,7 @@ export type ThreadLaunchWorkspaceStrategy =
     };
 
 export interface ThreadLaunchInitialMessage {
+  readonly turnSpeed?: import("@t3tools/contracts").TurnSpeedOption | undefined;
   readonly messageId?: MessageId;
   readonly scheduledTaskId?: ScheduledTaskId;
   readonly senderThreadId?: ThreadId;
@@ -1545,6 +1546,7 @@ const make = Effect.gen(function* () {
                     .message({ threadId: candidateThreadId, ordinal: 1 })
                     .pipe(Effect.mapError(mapError(input, "dispatch-message", candidateThreadId)))),
                 text: input.initialMessage.text,
+                turnSpeed: input.initialMessage.turnSpeed,
                 ...(input.initialMessage.scheduledTaskId === undefined
                   ? {}
                   : { scheduledTaskId: input.initialMessage.scheduledTaskId }),

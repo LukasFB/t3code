@@ -49,6 +49,7 @@ interface ComposerPrimaryActionsProps {
   runId?: string | null;
   followUpBehavior?: "queue" | "steer";
   canSteer?: boolean;
+  speedMode?: boolean;
   alternateShortcutLabel?: string | null;
   /** Dictation is running; Send finishes it and submits once the transcript lands. */
   voiceInputActive?: boolean;
@@ -242,6 +243,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   runId = null,
   followUpBehavior = "steer",
   canSteer = true,
+  speedMode = false,
   alternateShortcutLabel = null,
   voiceInputActive = false,
   isSendBusy,
@@ -276,7 +278,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
       running: isRunning,
       activeTurnDefault: followUpBehavior,
       canSteer,
-      alternateModifier: shortcutModifiers.metaKey || shortcutModifiers.ctrlKey,
+      alternateModifier: !speedMode && (shortcutModifiers.metaKey || shortcutModifiers.ctrlKey),
     }) === "queue";
   const alternateAction = alternateComposerDispatchAction(followUpBehavior);
   const isSendDisabled = !canOperateThread || sendDisabledReason !== null;
@@ -431,9 +433,11 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
     submitStatus ??
     (compactsBeforeSend
       ? gt("Summarize {tokens} tokens of history, then send", { tokens: compactTokens })
-      : isRunning && !isEditingQueuedMessage && canSteer
-        ? dispatchTooltip
-        : submitLabel);
+      : speedMode && !isEditingQueuedMessage
+        ? gt("Enter for Standard, {modifierLabel} + Enter for fastest", { modifierLabel: modifier })
+        : isRunning && !isEditingQueuedMessage && canSteer
+          ? dispatchTooltip
+          : submitLabel);
 
   const isBusyOrHeld = isSendBusy || isSendHeld;
   const sendButton = (

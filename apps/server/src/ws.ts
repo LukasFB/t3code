@@ -2285,6 +2285,7 @@ export const layerWsRpc = (
                                     ? {}
                                     : { messageId: input.initialMessage.messageId }),
                                   text: input.initialMessage.text,
+                                  turnSpeed: input.initialMessage.turnSpeed,
                                   attachments: input.initialMessage.attachments,
                                   ...(input.initialMessage.context === undefined
                                     ? {}

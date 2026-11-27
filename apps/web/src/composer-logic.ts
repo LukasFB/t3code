@@ -1,3 +1,4 @@
+import { isMacPlatform } from "@t3tools/shared/keybindings";
 import type { ClientSettings } from "@t3tools/contracts/settings";
 import type {
   AssistantCitation,
@@ -27,7 +28,12 @@ import {
 
 export type ComposerTriggerKind = "path" | "pull-request" | "slash-command" | "skill";
 export type ComposerSlashCommand = "model" | "side" | "btw" | "clear";
-export type ComposerSubmissionIntent = "foreground" | "background" | "alternate";
+export type ComposerSubmissionIntent =
+  | "foreground"
+  | "background"
+  | "alternate"
+  | "fastest"
+  | "standard";
 
 export interface ComposerTrigger {
   kind: ComposerTriggerKind;
@@ -90,6 +96,21 @@ export function composerSubmissionIntentForKey(input: {
       composerRequiresModifier: composerRequiresModifier(input.sendShortcut, input.prompt ?? ""),
     },
   });
+  if (
+    input.sendShortcut === "enter-speed" &&
+    event.key === "Enter" &&
+    !event.shiftKey &&
+    !event.altKey &&
+    (command === null ||
+      command === "composer.sendAlternate" ||
+      command === "composer.sendBackground")
+  ) {
+    if (!event.ctrlKey && !event.metaKey) return "standard";
+    const mac = isMacPlatform(
+      input.platform ?? (typeof navigator === "undefined" ? "" : navigator.platform),
+    );
+    if (mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey) return "fastest";
+  }
   if (command === "composer.sendAlternate" && input.isRunning) return "alternate";
   if (command === "composer.sendBackground" && input.isDraftThread) return "background";
   if (command === "composer.sendAndNewThread" && !input.isDraftThread) return "background";

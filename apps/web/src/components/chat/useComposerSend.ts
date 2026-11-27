@@ -1,3 +1,4 @@
+import { composerTurnSpeed } from "./composerProviderState";
 import * as Equal from "effect/Equal";
 import { msg } from "gt-react";
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
@@ -1123,6 +1124,7 @@ export function useComposerSend(input: ComposerSendInput) {
     const multipleTargets: MultipleModelTarget[] = [];
     for (const resolved of resolveMultipleModelTargets({
       selections: multipleModelSelections ?? [],
+      submissionIntent,
       providerInstanceEntries,
       messageText: messageTextForSend,
     })) {
@@ -1594,6 +1596,12 @@ export function useComposerSend(input: ComposerSendInput) {
             }),
           },
           modelSelection: ctxSelectedModelSelection,
+          turnSpeed: composerTurnSpeed(
+            ctxSelectedProvider,
+            ctxSelectedModel,
+            ctxSelectedProviderModels,
+            submissionIntent,
+          ),
           titleSeed: title,
           runtimeMode,
           interactionMode: DEFAULT_INTERACTION_MODE,

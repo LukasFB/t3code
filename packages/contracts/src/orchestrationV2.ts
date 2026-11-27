@@ -819,6 +819,12 @@ export const OrchestrationV2RunOutput = Schema.Struct({
 });
 export type OrchestrationV2RunOutput = typeof OrchestrationV2RunOutput.Type;
 
+export const TurnSpeedOption = Schema.Union([
+  Schema.Struct({ id: Schema.Literal("serviceTier"), value: TrimmedNonEmptyString }),
+  Schema.Struct({ id: Schema.Literal("fastMode"), value: Schema.Boolean }),
+]);
+export type TurnSpeedOption = typeof TurnSpeedOption.Type;
+
 export const OrchestrationV2Run = Schema.Struct({
   id: RunId,
   threadId: ThreadId,
@@ -831,6 +837,7 @@ export const OrchestrationV2Run = Schema.Struct({
   activeAttemptId: Schema.NullOr(RunAttemptId),
   status: OrchestrationV2RunStatus,
   queuePosition: Schema.optional(Schema.NullOr(PositiveInt)),
+  queuedTurnSpeed: Schema.optional(TurnSpeedOption),
   queueHeld: Schema.optional(Schema.Boolean),
   /** The sender asked for a separate turn; it is not an ordering barrier for a later auto send. */
   explicitQueue: Schema.optional(Schema.Literal(true)),
@@ -3364,6 +3371,7 @@ export const OrchestrationV2Command = Schema.Union([
         text: Schema.String,
         attachments: Schema.Array(ChatAttachment),
         context: Schema.optional(OrchestrationMessageContext),
+        turnSpeed: Schema.optional(TurnSpeedOption),
         titleSeed: Schema.optional(TrimmedNonEmptyString),
         scheduledTaskId: Schema.optional(ScheduledTaskId),
         senderThreadId: Schema.optional(ThreadId),
@@ -3633,6 +3641,7 @@ export const OrchestrationV2Command = Schema.Union([
     attachments: Schema.Array(ChatAttachment),
     titleSeed: Schema.optional(TrimmedNonEmptyString),
     modelSelection: Schema.optional(ModelSelection),
+    turnSpeed: Schema.optional(TurnSpeedOption),
     sourcePlanRef: Schema.optional(Schema.Struct({ threadId: ThreadId, planId: PlanId })),
     restartContinuationOfRunId: Schema.optional(RunId),
     usageLimitContinuationOfRunId: Schema.optional(RunId),
@@ -4192,6 +4201,7 @@ export const OrchestrationV2ThreadLaunchInput = Schema.Struct({
   workspaceStrategy: OrchestrationV2ThreadLaunchWorkspaceStrategy,
   initialMessage: Schema.optional(
     Schema.Struct({
+      turnSpeed: Schema.optional(TurnSpeedOption),
       messageId: Schema.optional(MessageId),
       text: Schema.String,
       context: Schema.optional(OrchestrationMessageContext),

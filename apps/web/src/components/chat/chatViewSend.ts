@@ -37,7 +37,11 @@ import {
 import { ATTACHMENT_ONLY_BOOTSTRAP_PROMPT } from "@t3tools/shared/composerContextReferences";
 import { createModelSelection } from "@t3tools/shared/model";
 import type { ProviderInstanceEntry } from "../../providerInstances";
-import { getComposerPromptInjectionState, getComposerProviderState } from "./composerProviderState";
+import {
+  composerTurnSpeed,
+  getComposerPromptInjectionState,
+  getComposerProviderState,
+} from "./composerProviderState";
 import {
   formatOutgoingPrompt,
   getAntigravitySendBlockReason,
@@ -345,6 +349,7 @@ export function restoreComposerDraft(
 }
 
 export interface MultipleModelTarget {
+  readonly turnSpeed?: import("@t3tools/contracts").TurnSpeedOption;
   readonly selection: ModelSelection;
   readonly text: string;
 }
@@ -357,6 +362,7 @@ export function resolveMultipleModelTargets(input: {
   readonly selections: ReadonlyArray<ModelSelection>;
   readonly providerInstanceEntries: ReadonlyArray<ProviderInstanceEntry>;
   readonly messageText: string;
+  readonly submissionIntent?: import("../../composer-logic").ComposerSubmissionIntent;
 }): Array<MultipleModelTarget | { readonly error: string }> {
   const { messageText } = input;
   return input.selections.map((selection) => {
@@ -375,7 +381,14 @@ export function resolveMultipleModelTargets(input: {
       modelOptions: selection.options,
       promptInjectionState: getComposerPromptInjectionState(messageText),
     });
+    const turnSpeed = composerTurnSpeed(
+      provider.driverKind,
+      selection.model,
+      provider.models,
+      input.submissionIntent,
+    );
     return {
+      ...(turnSpeed ? { turnSpeed } : {}),
       selection: createModelSelection(
         selection.instanceId,
         selection.model,

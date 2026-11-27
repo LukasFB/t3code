@@ -182,6 +182,7 @@ export function useMultipleModelSend(input: MultipleModelSendInput) {
                       context,
                     }),
                   },
+                  turnSpeed: target.turnSpeed,
                   modelSelection: target.selection,
                   titleSeed: title,
                   runtimeMode,
